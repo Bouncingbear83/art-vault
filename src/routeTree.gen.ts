@@ -11,13 +11,16 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
+import { Route as McpRouteImport } from './routes/mcp'
+import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]/list-tools'
+import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
 import { Route as AuthenticatedRegisterRouteImport } from './routes/_authenticated/register'
+import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
+import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
 import { Route as AuthenticatedArtistsIndexRouteImport } from './routes/_authenticated/artists.index'
 import { Route as AuthenticatedArtistsArtistIdRouteImport } from './routes/_authenticated/artists.$artistId'
 import { Route as AuthenticatedNotesNewRouteImport } from './routes/_authenticated/notes.new'
-import { Route as ApiPublicMcpRouteImport } from './routes/api/public/mcp'
 import { Route as AuthenticatedNotesNoteIdEditRouteImport } from './routes/_authenticated/notes.$noteId.edit'
-import { Route as ApiPublicMcpKeyRouteImport } from './routes/api/public/mcp.$key'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -28,11 +31,39 @@ const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
   id: '/_authenticated',
   getParentRoute: () => rootRouteImport,
 } as any)
+const McpRoute = McpRouteImport.update({
+  id: '/mcp',
+  path: '/mcp',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const Char91DotmcpChar93ListToolsRoute =
+  Char91DotmcpChar93ListToolsRouteImport.update({
+    id: '/.mcp/list-tools',
+    path: '/.mcp/list-tools',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const Char91DotwellKnownChar93OauthProtectedResourceRoute =
+  Char91DotwellKnownChar93OauthProtectedResourceRouteImport.update({
+    id: '/.well-known/oauth-protected-resource',
+    path: '/.well-known/oauth-protected-resource',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AuthenticatedRegisterRoute = AuthenticatedRegisterRouteImport.update({
   id: '/register',
   path: '/register',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const DotlovableOauthConsentRoute = DotlovableOauthConsentRouteImport.update({
+  id: '/.lovable/oauth/consent',
+  path: '/.lovable/oauth/consent',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const Char91DotmcpChar93InvokeToolToolRoute =
+  Char91DotmcpChar93InvokeToolToolRouteImport.update({
+    id: '/.mcp/invoke-tool/$tool',
+    path: '/.mcp/invoke-tool/$tool',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AuthenticatedArtistsIndexRoute =
   AuthenticatedArtistsIndexRouteImport.update({
     id: '/artists/',
@@ -50,93 +81,105 @@ const AuthenticatedNotesNewRoute = AuthenticatedNotesNewRouteImport.update({
   path: '/notes/new',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const ApiPublicMcpRoute = ApiPublicMcpRouteImport.update({
-  id: '/api/public/mcp',
-  path: '/api/public/mcp',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const AuthenticatedNotesNoteIdEditRoute =
   AuthenticatedNotesNoteIdEditRouteImport.update({
     id: '/notes/$noteId/edit',
     path: '/notes/$noteId/edit',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
-const ApiPublicMcpKeyRoute = ApiPublicMcpKeyRouteImport.update({
-  id: '/$key',
-  path: '/$key',
-  getParentRoute: () => ApiPublicMcpRoute,
-} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/mcp': typeof McpRoute
+  '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
+  '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/register': typeof AuthenticatedRegisterRoute
+  '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
+  '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/artists/$artistId': typeof AuthenticatedArtistsArtistIdRoute
   '/notes/new': typeof AuthenticatedNotesNewRoute
-  '/api/public/mcp': typeof ApiPublicMcpRouteWithChildren
   '/artists/': typeof AuthenticatedArtistsIndexRoute
   '/notes/$noteId/edit': typeof AuthenticatedNotesNoteIdEditRoute
-  '/api/public/mcp/$key': typeof ApiPublicMcpKeyRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/mcp': typeof McpRoute
+  '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
+  '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/register': typeof AuthenticatedRegisterRoute
+  '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
+  '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/artists/$artistId': typeof AuthenticatedArtistsArtistIdRoute
   '/notes/new': typeof AuthenticatedNotesNewRoute
-  '/api/public/mcp': typeof ApiPublicMcpRouteWithChildren
   '/artists': typeof AuthenticatedArtistsIndexRoute
   '/notes/$noteId/edit': typeof AuthenticatedNotesNoteIdEditRoute
-  '/api/public/mcp/$key': typeof ApiPublicMcpKeyRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
+  '/mcp': typeof McpRoute
+  '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
+  '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/_authenticated/register': typeof AuthenticatedRegisterRoute
+  '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
+  '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/_authenticated/artists/$artistId': typeof AuthenticatedArtistsArtistIdRoute
   '/_authenticated/notes/new': typeof AuthenticatedNotesNewRoute
-  '/api/public/mcp': typeof ApiPublicMcpRouteWithChildren
   '/_authenticated/artists/': typeof AuthenticatedArtistsIndexRoute
   '/_authenticated/notes/$noteId/edit': typeof AuthenticatedNotesNoteIdEditRoute
-  '/api/public/mcp/$key': typeof ApiPublicMcpKeyRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/mcp'
+    | '/.mcp/list-tools'
+    | '/.well-known/oauth-protected-resource'
     | '/register'
+    | '/.lovable/oauth/consent'
+    | '/.mcp/invoke-tool/$tool'
     | '/artists/$artistId'
     | '/notes/new'
-    | '/api/public/mcp'
     | '/artists/'
     | '/notes/$noteId/edit'
-    | '/api/public/mcp/$key'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/mcp'
+    | '/.mcp/list-tools'
+    | '/.well-known/oauth-protected-resource'
     | '/register'
+    | '/.lovable/oauth/consent'
+    | '/.mcp/invoke-tool/$tool'
     | '/artists/$artistId'
     | '/notes/new'
-    | '/api/public/mcp'
     | '/artists'
     | '/notes/$noteId/edit'
-    | '/api/public/mcp/$key'
   id:
     | '__root__'
     | '/'
     | '/_authenticated'
+    | '/mcp'
+    | '/.mcp/list-tools'
+    | '/.well-known/oauth-protected-resource'
     | '/_authenticated/register'
+    | '/.lovable/oauth/consent'
+    | '/.mcp/invoke-tool/$tool'
     | '/_authenticated/artists/$artistId'
     | '/_authenticated/notes/new'
-    | '/api/public/mcp'
     | '/_authenticated/artists/'
     | '/_authenticated/notes/$noteId/edit'
-    | '/api/public/mcp/$key'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
-  ApiPublicMcpRoute: typeof ApiPublicMcpRouteWithChildren
+  McpRoute: typeof McpRoute
+  Char91DotmcpChar93ListToolsRoute: typeof Char91DotmcpChar93ListToolsRoute
+  Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
+  Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -155,12 +198,47 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/mcp': {
+      id: '/mcp'
+      path: '/mcp'
+      fullPath: '/mcp'
+      preLoaderRoute: typeof McpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/.mcp/list-tools': {
+      id: '/.mcp/list-tools'
+      path: '/.mcp/list-tools'
+      fullPath: '/.mcp/list-tools'
+      preLoaderRoute: typeof Char91DotmcpChar93ListToolsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/.well-known/oauth-protected-resource': {
+      id: '/.well-known/oauth-protected-resource'
+      path: '/.well-known/oauth-protected-resource'
+      fullPath: '/.well-known/oauth-protected-resource'
+      preLoaderRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/register': {
       id: '/_authenticated/register'
       path: '/register'
       fullPath: '/register'
       preLoaderRoute: typeof AuthenticatedRegisterRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/.lovable/oauth/consent': {
+      id: '/.lovable/oauth/consent'
+      path: '/.lovable/oauth/consent'
+      fullPath: '/.lovable/oauth/consent'
+      preLoaderRoute: typeof DotlovableOauthConsentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/.mcp/invoke-tool/$tool': {
+      id: '/.mcp/invoke-tool/$tool'
+      path: '/.mcp/invoke-tool/$tool'
+      fullPath: '/.mcp/invoke-tool/$tool'
+      preLoaderRoute: typeof Char91DotmcpChar93InvokeToolToolRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/_authenticated/artists/': {
       id: '/_authenticated/artists/'
@@ -183,26 +261,12 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedNotesNewRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/api/public/mcp': {
-      id: '/api/public/mcp'
-      path: '/api/public/mcp'
-      fullPath: '/api/public/mcp'
-      preLoaderRoute: typeof ApiPublicMcpRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/_authenticated/notes/$noteId/edit': {
       id: '/_authenticated/notes/$noteId/edit'
       path: '/notes/$noteId/edit'
       fullPath: '/notes/$noteId/edit'
       preLoaderRoute: typeof AuthenticatedNotesNoteIdEditRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/api/public/mcp/$key': {
-      id: '/api/public/mcp/$key'
-      path: '/$key'
-      fullPath: '/api/public/mcp/$key'
-      preLoaderRoute: typeof ApiPublicMcpKeyRouteImport
-      parentRoute: typeof ApiPublicMcpRoute
     }
   }
 }
@@ -226,22 +290,15 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
 const AuthenticatedRouteRouteWithChildren =
   AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
 
-interface ApiPublicMcpRouteChildren {
-  ApiPublicMcpKeyRoute: typeof ApiPublicMcpKeyRoute
-}
-
-const ApiPublicMcpRouteChildren: ApiPublicMcpRouteChildren = {
-  ApiPublicMcpKeyRoute: ApiPublicMcpKeyRoute,
-}
-
-const ApiPublicMcpRouteWithChildren = ApiPublicMcpRoute._addFileChildren(
-  ApiPublicMcpRouteChildren,
-)
-
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
-  ApiPublicMcpRoute: ApiPublicMcpRouteWithChildren,
+  McpRoute: McpRoute,
+  Char91DotmcpChar93ListToolsRoute: Char91DotmcpChar93ListToolsRoute,
+  Char91DotwellKnownChar93OauthProtectedResourceRoute:
+    Char91DotwellKnownChar93OauthProtectedResourceRoute,
+  DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
+  Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

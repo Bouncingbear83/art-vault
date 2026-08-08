@@ -2,8 +2,14 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
+function safeNext(value: unknown): string {
+  // Only same-origin relative paths may be used as a post-sign-in destination.
+  return typeof value === "string" && value.startsWith("/") && !value.startsWith("//") ? value : "";
+}
+
 export const Route = createFileRoute("/")({
   ssr: false,
+  validateSearch: (s: Record<string, unknown>) => ({ next: safeNext(s['next']) }),
   head: () => ({
     meta: [
       { title: "Art360 — sign in to the vault" },
@@ -24,22 +30,24 @@ export const Route = createFileRoute("/")({
 
 function SignIn() {
   const navigate = useNavigate();
+  const { next } = Route.useSearch();
+  const destination = next || "/register";
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
   const [message, setMessage] = useState("");
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
-      if (data.session) navigate({ to: "/register", replace: true });
+      if (data.session) navigate({ href: destination, replace: true });
     });
-  }, [navigate]);
+  }, [navigate, destination]);
 
   async function sendLink(event: React.FormEvent) {
     event.preventDefault();
     setStatus("sending");
     const { error } = await supabase.auth.signInWithOtp({
       email: email.trim(),
-      options: { emailRedirectTo: window.location.origin + "/register" },
+      options: { emailRedirectTo: window.location.origin + destination },
     });
     if (error) {
       setStatus("error");

@@ -1,0 +1,315 @@
+{
+  "version": 1,
+  "sdk_version": "0.26.1",
+  "path": "/mcp",
+  "auth": {
+    "type": "oauth",
+    "issuer": "https://tagmuypbjezynlcjvtuu.supabase.co/auth/v1",
+    "accepted_audiences": [
+      "authenticated"
+    ]
+  },
+  "mcp": {
+    "server": {
+      "name": "art-vault",
+      "version": "1.0.0",
+      "title": "Art Vault"
+    },
+    "tools": [
+      {
+        "name": "create_note",
+        "title": "Create note",
+        "description": "Create a note in the Art360 vault. Enforces the schema constraints (Artist-scope requires artist_id; Flag requires priority) and rejects unknown tags.",
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "note_type": {
+              "type": "string",
+              "enum": [
+                "Verdict",
+                "Classification",
+                "Trigger",
+                "Flag",
+                "Learning",
+                "Playbook",
+                "Lot"
+              ]
+            },
+            "scope": {
+              "type": "string",
+              "enum": [
+                "Artist",
+                "Venue",
+                "Subject",
+                "Medium",
+                "System",
+                "Portfolio",
+                "Lot"
+              ]
+            },
+            "body": {
+              "type": "string",
+              "minLength": 1,
+              "description": "The note text."
+            },
+            "artist_id": {
+              "description": "Canonical slug, required when scope=Artist.",
+              "type": "string"
+            },
+            "entity_key": {
+              "description": "Venue / subject / sale_key when scope<>Artist.",
+              "type": "string"
+            },
+            "decision": {
+              "type": "string",
+              "enum": [
+                "Reclassify",
+                "Set_Trigger",
+                "Add_Vocab",
+                "Patch_Taxonomy",
+                "Buy",
+                "Skip",
+                "Monitor",
+                "No_Action"
+              ]
+            },
+            "action_status": {
+              "type": "string",
+              "enum": [
+                "Open",
+                "Actioned",
+                "Superseded",
+                "Wontfix",
+                "Archived"
+              ]
+            },
+            "play_type": {
+              "type": "string",
+              "enum": [
+                "Arbitrage",
+                "Quality_hold",
+                "Pending",
+                "NA"
+              ]
+            },
+            "confidence": {
+              "type": "string",
+              "enum": [
+                "High",
+                "Med",
+                "Low"
+              ]
+            },
+            "priority": {
+              "description": "Required when note_type=Flag.",
+              "type": "string",
+              "enum": [
+                "P1",
+                "P2",
+                "P3"
+              ]
+            },
+            "valid_from": {
+              "description": "ISO date; defaults to today.",
+              "type": "string"
+            },
+            "valid_to": {
+              "description": "ISO date; null = evergreen.",
+              "type": "string"
+            },
+            "supersedes": {
+              "description": "note_id of the note this replaces.",
+              "type": "string"
+            },
+            "source_ref": {
+              "description": "dump / sale_key / csv that generated it.",
+              "type": "string"
+            },
+            "slug": {
+              "description": "Human key e.g. 2026-08-08-danby-verdict-01.",
+              "type": "string"
+            },
+            "tags": {
+              "description": "Must exist in vocab_note_tag.",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "created_by": {
+              "description": "claude | bert | app. Defaults to claude.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "note_type",
+            "scope",
+            "body"
+          ]
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "search_notes",
+        "title": "Search notes",
+        "description": "Search the vault. Excludes expired notes (valid_to < today) unless include_expired=true; always flags expired rows rather than hiding them.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "artist_id": {
+              "type": "string"
+            },
+            "scope": {
+              "type": "string",
+              "enum": [
+                "Artist",
+                "Venue",
+                "Subject",
+                "Medium",
+                "System",
+                "Portfolio",
+                "Lot"
+              ]
+            },
+            "note_type": {
+              "type": "string",
+              "enum": [
+                "Verdict",
+                "Classification",
+                "Trigger",
+                "Flag",
+                "Learning",
+                "Playbook",
+                "Lot"
+              ]
+            },
+            "action_status": {
+              "type": "string",
+              "enum": [
+                "Open",
+                "Actioned",
+                "Superseded",
+                "Wontfix",
+                "Archived"
+              ]
+            },
+            "decision": {
+              "type": "string",
+              "enum": [
+                "Reclassify",
+                "Set_Trigger",
+                "Add_Vocab",
+                "Patch_Taxonomy",
+                "Buy",
+                "Skip",
+                "Monitor",
+                "No_Action"
+              ]
+            },
+            "priority": {
+              "type": "string",
+              "enum": [
+                "P1",
+                "P2",
+                "P3"
+              ]
+            },
+            "tag": {
+              "description": "Single tag from vocab_note_tag.",
+              "type": "string"
+            },
+            "query": {
+              "description": "Case-insensitive substring match on the note body.",
+              "type": "string"
+            },
+            "include_expired": {
+              "type": "boolean"
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          }
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "update_flag",
+        "title": "Update flag",
+        "description": "Update a note's action_status and/or priority. Keyed by note_id or slug. Use to action/supersede/archive a flag.",
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": true
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "note_id": {
+              "type": "string"
+            },
+            "slug": {
+              "type": "string"
+            },
+            "action_status": {
+              "type": "string",
+              "enum": [
+                "Open",
+                "Actioned",
+                "Superseded",
+                "Wontfix",
+                "Archived"
+              ]
+            },
+            "priority": {
+              "type": "string",
+              "enum": [
+                "P1",
+                "P2",
+                "P3"
+              ]
+            }
+          }
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "get_artist360",
+        "title": "Get artist 360",
+        "description": "Return the artist_360 surface (verdict facets + comps_rollup quant + open-flag count) for one artist, plus their open, non-expired notes.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "artist_id": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "artist_id"
+          ]
+        },
+        "outputSchema": null
+      }
+    ]
+  }
+}
