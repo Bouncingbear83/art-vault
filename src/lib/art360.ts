@@ -8,11 +8,12 @@ export type Artist360 = Database["public"]["Views"]["artist_360"]["Row"];
 export type VocabTag = Database["public"]["Tables"]["vocab_note_tag"]["Row"];
 
 export type NoteWithRelations = NoteRow & {
+  id: string;
   artists: { id: string; name: string } | null;
   note_tags: { tag: string }[];
 };
 
-const NOTE_SELECT = "*, artists(id, name), note_tags(tag)";
+const NOTE_SELECT = "*, id:note_id, artists(id:artist_id, name:display_name), note_tags(tag)";
 
 /** Every dropdown value comes from the database, never a hardcoded list. */
 export async function fetchEnumValues(enumName: keyof Enums | string): Promise<string[]> {
@@ -43,7 +44,7 @@ export async function fetchTagVocab(): Promise<VocabTag[]> {
   const { data, error } = await supabase
     .from("vocab_note_tag")
     .select("*")
-    .order("sort_order");
+    .order("tag");
   if (error) throw error;
   return data ?? [];
 }
@@ -60,13 +61,13 @@ export async function fetchOpenFlags(): Promise<NoteWithRelations[]> {
   return (data ?? []) as unknown as NoteWithRelations[];
 }
 
-export async function setActionStatus(id: string, status: Enums["action_status"]) {
-  const { error } = await supabase.from("notes").update({ action_status: status }).eq("id", id);
+export async function setActionStatus(id: string, status: Enums["action_status_t"]) {
+  const { error } = await supabase.from("notes").update({ action_status: status }).eq("note_id", id);
   if (error) throw error;
 }
 
 export async function fetchArtist360(): Promise<Artist360[]> {
-  const { data, error } = await supabase.from("artist_360").select("*").order("name");
+  const { data, error } = await supabase.from("artist_360").select("*").order("display_name");
   if (error) throw error;
   return data ?? [];
 }
@@ -92,9 +93,9 @@ export async function fetchArtistNotes(artistId: string): Promise<NoteWithRelati
 }
 
 export async function fetchArtistOptions(): Promise<{ id: string; name: string }[]> {
-  const { data, error } = await supabase.from("artists").select("id, name").order("name");
+  const { data, error } = await supabase.from("artists").select("id:artist_id, name:display_name").order("display_name");
   if (error) throw error;
-  return data ?? [];
+  return (data ?? []) as unknown as { id: string; name: string }[];
 }
 
 export async function fetchNoteOptions(): Promise<
@@ -102,18 +103,18 @@ export async function fetchNoteOptions(): Promise<
 > {
   const { data, error } = await supabase
     .from("notes")
-    .select("id, note_type, body, valid_from")
+    .select("id:note_id, note_type, body, valid_from")
     .order("valid_from", { ascending: false })
     .limit(200);
   if (error) throw error;
-  return data ?? [];
+  return (data ?? []) as unknown as { id: string; note_type: string; body: string; valid_from: string }[];
 }
 
 export async function fetchNote(id: string): Promise<NoteWithRelations | null> {
   const { data, error } = await supabase
     .from("notes")
     .select(NOTE_SELECT)
-    .eq("id", id)
+    .eq("note_id", id)
     .maybeSingle();
   if (error) throw error;
   return data as unknown as NoteWithRelations | null;
@@ -122,23 +123,23 @@ export async function fetchNote(id: string): Promise<NoteWithRelations | null> {
 export type NoteInput = Database["public"]["Tables"]["notes"]["Insert"];
 
 export async function createNote(note: NoteInput, tags: string[]) {
-  const { data, error } = await supabase.from("notes").insert(note).select("id").single();
+  const { data, error } = await supabase.from("notes").insert(note).select("note_id").single();
   if (error) throw error;
   if (tags.length) {
     const { error: tagError } = await supabase
       .from("note_tags")
-      .insert(tags.map((tag) => ({ note_id: data.id, tag })));
+      .insert(tags.map((tag) => ({ note_id: data.note_id, tag })));
     if (tagError) {
       // keep the vault consistent: no orphan note without its tags
-      await supabase.from("notes").delete().eq("id", data.id);
+      await supabase.from("notes").delete().eq("note_id", data.note_id);
       throw tagError;
     }
   }
-  return data.id;
+  return data.note_id;
 }
 
 export async function updateNote(id: string, note: NoteInput, tags: string[]) {
-  const { error } = await supabase.from("notes").update(note).eq("id", id);
+  const { error } = await supabase.from("notes").update(note).eq("note_id", id);
   if (error) throw error;
   const { error: delError } = await supabase.from("note_tags").delete().eq("note_id", id);
   if (delError) throw delError;
