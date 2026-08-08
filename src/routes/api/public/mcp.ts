@@ -19,7 +19,7 @@ const CONFIDENCE = ["High", "Med", "Low"];
 const PRIORITY = ["P1", "P2", "P3"];
 const PLAY_TYPE = ["Arbitrage", "Quality_hold", "Pending", "NA"];
 
-type Args = Record<string, any>;
+type Args = any;
 type Db = any;
 
 const today = () => new Date().toISOString().slice(0, 10);
