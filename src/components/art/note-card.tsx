@@ -40,7 +40,7 @@ export function NoteCard({ note }: { note: NoteWithRelations }) {
         )}
         <Link
           to="/notes/$noteId/edit"
-          params={{ noteId: note.id }}
+          params={{ noteId: note.note_id }}
           className="label-caps ml-auto hover:text-foreground"
         >
           Edit
