@@ -15,7 +15,7 @@ export const Route = createFileRoute("/")({
       { property: "og:title", content: "Art360 — sign in to the vault" },
       {
         property: "og:description",
-        content: "Private sign-in for Art360, a dealer's judgement layer for auction arbitrage.",
+        content: "Private sign-in for Art360, the research vault behind a UK art dealer's buy-resell book.",
       },
     ],
   }),

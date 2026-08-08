@@ -76,15 +76,21 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Art360 — private research vault" },
+      { title: "Art360 — sign in to the vault" },
       {
         name: "description",
         content:
-          "A private research vault and analytics surface for a UK art dealer: verdicts, triggers and flags beside per-artist auction data.",
+          "Private sign-in for Art360, the research vault behind a UK art dealer's buy-resell book.",
       },
       { name: "robots", content: "noindex, nofollow" },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
+      { property: "og:title", content: "Art360 — sign in to the vault" },
+      { name: "twitter:title", content: "Art360 — sign in to the vault" },
+      { property: "og:description", content: "Private sign-in for Art360, the research vault behind a UK art dealer's buy-resell book." },
+      { name: "twitter:description", content: "Private sign-in for Art360, the research vault behind a UK art dealer's buy-resell book." },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/4a5335bac77aa6808d0392c513321c46/id-preview-24cc0301--d3cd5cbb-dc10-41a9-835c-9247d557b9ea.lovable.app-1786183759945.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/4a5335bac77aa6808d0392c513321c46/id-preview-24cc0301--d3cd5cbb-dc10-41a9-835c-9247d557b9ea.lovable.app-1786183759945.png" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
