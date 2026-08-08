@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthenticatedRegisterRouteImport } from './routes/_authenticated/register'
+import { Route as AuthenticatedArtistsIndexRouteImport } from './routes/_authenticated/artists.index'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -27,27 +28,41 @@ const AuthenticatedRegisterRoute = AuthenticatedRegisterRouteImport.update({
   path: '/register',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedArtistsIndexRoute =
+  AuthenticatedArtistsIndexRouteImport.update({
+    id: '/artists/',
+    path: '/artists/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/register': typeof AuthenticatedRegisterRoute
+  '/artists/': typeof AuthenticatedArtistsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/register': typeof AuthenticatedRegisterRoute
+  '/artists': typeof AuthenticatedArtistsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/_authenticated/register': typeof AuthenticatedRegisterRoute
+  '/_authenticated/artists/': typeof AuthenticatedArtistsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/register'
+  fullPaths: '/' | '/register' | '/artists/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/register'
-  id: '__root__' | '/' | '/_authenticated' | '/_authenticated/register'
+  to: '/' | '/register' | '/artists'
+  id:
+    | '__root__'
+    | '/'
+    | '/_authenticated'
+    | '/_authenticated/register'
+    | '/_authenticated/artists/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -78,15 +93,24 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedRegisterRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/artists/': {
+      id: '/_authenticated/artists/'
+      path: '/artists'
+      fullPath: '/artists/'
+      preLoaderRoute: typeof AuthenticatedArtistsIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedRegisterRoute: typeof AuthenticatedRegisterRoute
+  AuthenticatedArtistsIndexRoute: typeof AuthenticatedArtistsIndexRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedRegisterRoute: AuthenticatedRegisterRoute,
+  AuthenticatedArtistsIndexRoute: AuthenticatedArtistsIndexRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
