@@ -10,33 +10,108 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
+import { Route as AuthenticatedRegisterRouteImport } from './routes/_authenticated/register'
+import { Route as AuthenticatedArtistsIndexRouteImport } from './routes/_authenticated/artists.index'
+import { Route as AuthenticatedArtistsArtistIdRouteImport } from './routes/_authenticated/artists.$artistId'
+import { Route as AuthenticatedNotesNewRouteImport } from './routes/_authenticated/notes.new'
+import { Route as AuthenticatedNotesNoteIdEditRouteImport } from './routes/_authenticated/notes.$noteId.edit'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
+  id: '/_authenticated',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedRegisterRoute = AuthenticatedRegisterRouteImport.update({
+  id: '/register',
+  path: '/register',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedArtistsIndexRoute =
+  AuthenticatedArtistsIndexRouteImport.update({
+    id: '/artists/',
+    path: '/artists/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedArtistsArtistIdRoute =
+  AuthenticatedArtistsArtistIdRouteImport.update({
+    id: '/artists/$artistId',
+    path: '/artists/$artistId',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedNotesNewRoute = AuthenticatedNotesNewRouteImport.update({
+  id: '/notes/new',
+  path: '/notes/new',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedNotesNoteIdEditRoute =
+  AuthenticatedNotesNoteIdEditRouteImport.update({
+    id: '/notes/$noteId/edit',
+    path: '/notes/$noteId/edit',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/register': typeof AuthenticatedRegisterRoute
+  '/artists/$artistId': typeof AuthenticatedArtistsArtistIdRoute
+  '/notes/new': typeof AuthenticatedNotesNewRoute
+  '/artists/': typeof AuthenticatedArtistsIndexRoute
+  '/notes/$noteId/edit': typeof AuthenticatedNotesNoteIdEditRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/register': typeof AuthenticatedRegisterRoute
+  '/artists/$artistId': typeof AuthenticatedArtistsArtistIdRoute
+  '/notes/new': typeof AuthenticatedNotesNewRoute
+  '/artists': typeof AuthenticatedArtistsIndexRoute
+  '/notes/$noteId/edit': typeof AuthenticatedNotesNoteIdEditRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
+  '/_authenticated/register': typeof AuthenticatedRegisterRoute
+  '/_authenticated/artists/$artistId': typeof AuthenticatedArtistsArtistIdRoute
+  '/_authenticated/notes/new': typeof AuthenticatedNotesNewRoute
+  '/_authenticated/artists/': typeof AuthenticatedArtistsIndexRoute
+  '/_authenticated/notes/$noteId/edit': typeof AuthenticatedNotesNoteIdEditRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/register'
+    | '/artists/$artistId'
+    | '/notes/new'
+    | '/artists/'
+    | '/notes/$noteId/edit'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/register'
+    | '/artists/$artistId'
+    | '/notes/new'
+    | '/artists'
+    | '/notes/$noteId/edit'
+  id:
+    | '__root__'
+    | '/'
+    | '/_authenticated'
+    | '/_authenticated/register'
+    | '/_authenticated/artists/$artistId'
+    | '/_authenticated/notes/new'
+    | '/_authenticated/artists/'
+    | '/_authenticated/notes/$noteId/edit'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
@@ -48,22 +123,74 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated': {
+      id: '/_authenticated'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthenticatedRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/register': {
+      id: '/_authenticated/register'
+      path: '/register'
+      fullPath: '/register'
+      preLoaderRoute: typeof AuthenticatedRegisterRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/artists/': {
+      id: '/_authenticated/artists/'
+      path: '/artists'
+      fullPath: '/artists/'
+      preLoaderRoute: typeof AuthenticatedArtistsIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/artists/$artistId': {
+      id: '/_authenticated/artists/$artistId'
+      path: '/artists/$artistId'
+      fullPath: '/artists/$artistId'
+      preLoaderRoute: typeof AuthenticatedArtistsArtistIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/notes/new': {
+      id: '/_authenticated/notes/new'
+      path: '/notes/new'
+      fullPath: '/notes/new'
+      preLoaderRoute: typeof AuthenticatedNotesNewRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/notes/$noteId/edit': {
+      id: '/_authenticated/notes/$noteId/edit'
+      path: '/notes/$noteId/edit'
+      fullPath: '/notes/$noteId/edit'
+      preLoaderRoute: typeof AuthenticatedNotesNoteIdEditRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
 
+interface AuthenticatedRouteRouteChildren {
+  AuthenticatedRegisterRoute: typeof AuthenticatedRegisterRoute
+  AuthenticatedArtistsArtistIdRoute: typeof AuthenticatedArtistsArtistIdRoute
+  AuthenticatedNotesNewRoute: typeof AuthenticatedNotesNewRoute
+  AuthenticatedArtistsIndexRoute: typeof AuthenticatedArtistsIndexRoute
+  AuthenticatedNotesNoteIdEditRoute: typeof AuthenticatedNotesNoteIdEditRoute
+}
+
+const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedRegisterRoute: AuthenticatedRegisterRoute,
+  AuthenticatedArtistsArtistIdRoute: AuthenticatedArtistsArtistIdRoute,
+  AuthenticatedNotesNewRoute: AuthenticatedNotesNewRoute,
+  AuthenticatedArtistsIndexRoute: AuthenticatedArtistsIndexRoute,
+  AuthenticatedNotesNoteIdEditRoute: AuthenticatedNotesNoteIdEditRoute,
+}
+
+const AuthenticatedRouteRouteWithChildren =
+  AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
