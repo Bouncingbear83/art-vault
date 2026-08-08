@@ -16,85 +16,67 @@ export type Database = {
     Tables: {
       artists: {
         Row: {
-          arr_status: Database["public"]["Enums"]["arr_status"]
-          birth_year: number | null
-          created_at: string
-          dates_text: string | null
-          death_year: number | null
-          id: string
-          name: string
-          nationality: string | null
-          palette_pref: Database["public"]["Enums"]["palette_pref"] | null
-          play_type: Database["public"]["Enums"]["play_type"] | null
-          tier: Database["public"]["Enums"]["artist_tier"]
+          arr_status: string | null
+          artist_id: string
+          dates: string | null
+          display_name: string
+          palette_pref: string | null
+          play_type: Database["public"]["Enums"]["play_type_t"] | null
+          tier: string | null
+          updated_at: string | null
         }
         Insert: {
-          arr_status?: Database["public"]["Enums"]["arr_status"]
-          birth_year?: number | null
-          created_at?: string
-          dates_text?: string | null
-          death_year?: number | null
-          id?: string
-          name: string
-          nationality?: string | null
-          palette_pref?: Database["public"]["Enums"]["palette_pref"] | null
-          play_type?: Database["public"]["Enums"]["play_type"] | null
-          tier?: Database["public"]["Enums"]["artist_tier"]
+          arr_status?: string | null
+          artist_id: string
+          dates?: string | null
+          display_name: string
+          palette_pref?: string | null
+          play_type?: Database["public"]["Enums"]["play_type_t"] | null
+          tier?: string | null
+          updated_at?: string | null
         }
         Update: {
-          arr_status?: Database["public"]["Enums"]["arr_status"]
-          birth_year?: number | null
-          created_at?: string
-          dates_text?: string | null
-          death_year?: number | null
-          id?: string
-          name?: string
-          nationality?: string | null
-          palette_pref?: Database["public"]["Enums"]["palette_pref"] | null
-          play_type?: Database["public"]["Enums"]["play_type"] | null
-          tier?: Database["public"]["Enums"]["artist_tier"]
+          arr_status?: string | null
+          artist_id?: string
+          dates?: string | null
+          display_name?: string
+          palette_pref?: string | null
+          play_type?: Database["public"]["Enums"]["play_type_t"] | null
+          tier?: string | null
+          updated_at?: string | null
         }
         Relationships: []
       }
       comps_rollup: {
         Row: {
           artist_id: string
-          data_confidence: Database["public"]["Enums"]["data_confidence"]
-          high_gbp: number | null
-          last_sale_date: string | null
-          low_gbp: number | null
-          mean_uk_hammer_gbp: number | null
+          data_confidence: Database["public"]["Enums"]["confidence_t"] | null
+          exit_vs_regional_spread: number | null
+          in_zone_realisation: number | null
           median_uk_hammer_gbp: number | null
-          n_lots_total: number | null
           n_uk_auto_oil: number | null
           sell_through_pct: number | null
-          updated_at: string
+          updated_at: string | null
         }
         Insert: {
           artist_id: string
-          data_confidence?: Database["public"]["Enums"]["data_confidence"]
-          high_gbp?: number | null
-          last_sale_date?: string | null
-          low_gbp?: number | null
-          mean_uk_hammer_gbp?: number | null
+          data_confidence?: Database["public"]["Enums"]["confidence_t"] | null
+          exit_vs_regional_spread?: number | null
+          in_zone_realisation?: number | null
           median_uk_hammer_gbp?: number | null
-          n_lots_total?: number | null
           n_uk_auto_oil?: number | null
           sell_through_pct?: number | null
-          updated_at?: string
+          updated_at?: string | null
         }
         Update: {
           artist_id?: string
-          data_confidence?: Database["public"]["Enums"]["data_confidence"]
-          high_gbp?: number | null
-          last_sale_date?: string | null
-          low_gbp?: number | null
-          mean_uk_hammer_gbp?: number | null
+          data_confidence?: Database["public"]["Enums"]["confidence_t"] | null
+          exit_vs_regional_spread?: number | null
+          in_zone_realisation?: number | null
           median_uk_hammer_gbp?: number | null
-          n_lots_total?: number | null
           n_uk_auto_oil?: number | null
           sell_through_pct?: number | null
-          updated_at?: string
+          updated_at?: string | null
         }
         Relationships: [
           {
@@ -109,7 +91,7 @@ export type Database = {
             columns: ["artist_id"]
             isOneToOne: true
             referencedRelation: "artists"
-            referencedColumns: ["id"]
+            referencedColumns: ["artist_id"]
           },
         ]
       }
@@ -132,7 +114,7 @@ export type Database = {
             columns: ["note_id"]
             isOneToOne: false
             referencedRelation: "notes"
-            referencedColumns: ["id"]
+            referencedColumns: ["note_id"]
           },
           {
             foreignKeyName: "note_tags_tag_fkey"
@@ -145,59 +127,65 @@ export type Database = {
       }
       notes: {
         Row: {
-          action_status: Database["public"]["Enums"]["action_status"]
+          action_status: Database["public"]["Enums"]["action_status_t"] | null
           artist_id: string | null
           body: string
-          confidence: Database["public"]["Enums"]["confidence_level"] | null
-          created_at: string
-          decision: Database["public"]["Enums"]["decision_kind"] | null
+          confidence: Database["public"]["Enums"]["confidence_t"] | null
+          created_at: string | null
+          created_by: string | null
+          decision: Database["public"]["Enums"]["decision_t"] | null
           entity_key: string | null
-          id: string
-          note_type: Database["public"]["Enums"]["note_type"]
-          play_type: Database["public"]["Enums"]["play_type"] | null
-          priority: Database["public"]["Enums"]["priority_level"] | null
-          scope: Database["public"]["Enums"]["note_scope"]
+          note_id: string
+          note_type: Database["public"]["Enums"]["note_type_t"]
+          play_type: Database["public"]["Enums"]["play_type_t"] | null
+          priority: Database["public"]["Enums"]["priority_t"] | null
+          scope: Database["public"]["Enums"]["note_scope_t"]
+          slug: string | null
           source_ref: string | null
           supersedes: string | null
-          updated_at: string
+          updated_at: string | null
           valid_from: string
           valid_to: string | null
         }
         Insert: {
-          action_status?: Database["public"]["Enums"]["action_status"]
+          action_status?: Database["public"]["Enums"]["action_status_t"] | null
           artist_id?: string | null
           body: string
-          confidence?: Database["public"]["Enums"]["confidence_level"] | null
-          created_at?: string
-          decision?: Database["public"]["Enums"]["decision_kind"] | null
+          confidence?: Database["public"]["Enums"]["confidence_t"] | null
+          created_at?: string | null
+          created_by?: string | null
+          decision?: Database["public"]["Enums"]["decision_t"] | null
           entity_key?: string | null
-          id?: string
-          note_type: Database["public"]["Enums"]["note_type"]
-          play_type?: Database["public"]["Enums"]["play_type"] | null
-          priority?: Database["public"]["Enums"]["priority_level"] | null
-          scope: Database["public"]["Enums"]["note_scope"]
+          note_id?: string
+          note_type: Database["public"]["Enums"]["note_type_t"]
+          play_type?: Database["public"]["Enums"]["play_type_t"] | null
+          priority?: Database["public"]["Enums"]["priority_t"] | null
+          scope: Database["public"]["Enums"]["note_scope_t"]
+          slug?: string | null
           source_ref?: string | null
           supersedes?: string | null
-          updated_at?: string
+          updated_at?: string | null
           valid_from?: string
           valid_to?: string | null
         }
         Update: {
-          action_status?: Database["public"]["Enums"]["action_status"]
+          action_status?: Database["public"]["Enums"]["action_status_t"] | null
           artist_id?: string | null
           body?: string
-          confidence?: Database["public"]["Enums"]["confidence_level"] | null
-          created_at?: string
-          decision?: Database["public"]["Enums"]["decision_kind"] | null
+          confidence?: Database["public"]["Enums"]["confidence_t"] | null
+          created_at?: string | null
+          created_by?: string | null
+          decision?: Database["public"]["Enums"]["decision_t"] | null
           entity_key?: string | null
-          id?: string
-          note_type?: Database["public"]["Enums"]["note_type"]
-          play_type?: Database["public"]["Enums"]["play_type"] | null
-          priority?: Database["public"]["Enums"]["priority_level"] | null
-          scope?: Database["public"]["Enums"]["note_scope"]
+          note_id?: string
+          note_type?: Database["public"]["Enums"]["note_type_t"]
+          play_type?: Database["public"]["Enums"]["play_type_t"] | null
+          priority?: Database["public"]["Enums"]["priority_t"] | null
+          scope?: Database["public"]["Enums"]["note_scope_t"]
+          slug?: string | null
           source_ref?: string | null
           supersedes?: string | null
-          updated_at?: string
+          updated_at?: string | null
           valid_from?: string
           valid_to?: string | null
         }
@@ -214,34 +202,28 @@ export type Database = {
             columns: ["artist_id"]
             isOneToOne: false
             referencedRelation: "artists"
-            referencedColumns: ["id"]
+            referencedColumns: ["artist_id"]
           },
           {
             foreignKeyName: "notes_supersedes_fkey"
             columns: ["supersedes"]
             isOneToOne: false
             referencedRelation: "notes"
-            referencedColumns: ["id"]
+            referencedColumns: ["note_id"]
           },
         ]
       }
       vocab_note_tag: {
         Row: {
           description: string | null
-          label: string
-          sort_order: number
           tag: string
         }
         Insert: {
           description?: string | null
-          label: string
-          sort_order?: number
           tag: string
         }
         Update: {
           description?: string | null
-          label?: string
-          sort_order?: number
           tag?: string
         }
         Relationships: []
@@ -250,27 +232,20 @@ export type Database = {
     Views: {
       artist_360: {
         Row: {
-          arr_status: Database["public"]["Enums"]["arr_status"] | null
+          arr_status: string | null
           artist_id: string | null
-          birth_year: number | null
-          comps_updated_at: string | null
-          data_confidence: Database["public"]["Enums"]["data_confidence"] | null
-          dates_text: string | null
-          death_year: number | null
-          high_gbp: number | null
-          last_sale_date: string | null
-          low_gbp: number | null
-          mean_uk_hammer_gbp: number | null
+          data_confidence: Database["public"]["Enums"]["confidence_t"] | null
+          dates: string | null
+          display_name: string | null
+          exit_vs_regional_spread: number | null
+          in_zone_realisation: number | null
           median_uk_hammer_gbp: number | null
-          n_lots_total: number | null
           n_uk_auto_oil: number | null
-          name: string | null
-          nationality: string | null
           open_flags: number | null
-          palette_pref: Database["public"]["Enums"]["palette_pref"] | null
-          play_type: Database["public"]["Enums"]["play_type"] | null
+          palette_pref: string | null
+          play_type: Database["public"]["Enums"]["play_type_t"] | null
           sell_through_pct: number | null
-          tier: Database["public"]["Enums"]["artist_tier"] | null
+          tier: string | null
         }
         Relationships: []
       }
@@ -288,13 +263,45 @@ export type Database = {
     }
     Enums: {
       action_status: "Open" | "Actioned" | "Dismissed"
+      action_status_t:
+        | "Open"
+        | "Actioned"
+        | "Superseded"
+        | "Wontfix"
+        | "Archived"
       arr_status: "In ARR" | "ARR Expired" | "Unknown"
       artist_tier: "Core" | "Satellite" | "Speculative" | "Retired"
       confidence_level: "Low" | "Medium" | "High"
+      confidence_t: "High" | "Med" | "Low"
       data_confidence: "Thin" | "Adequate" | "Strong"
       decision_kind: "Buy" | "Watch" | "Avoid" | "Undecided"
+      decision_t:
+        | "Reclassify"
+        | "Set_Trigger"
+        | "Add_Vocab"
+        | "Patch_Taxonomy"
+        | "Buy"
+        | "Skip"
+        | "Monitor"
+        | "No_Action"
       note_scope: "Artist" | "Venue" | "System"
+      note_scope_t:
+        | "Artist"
+        | "Venue"
+        | "Subject"
+        | "Medium"
+        | "System"
+        | "Portfolio"
+        | "Lot"
       note_type: "Verdict" | "Trigger" | "Flag" | "Observation"
+      note_type_t:
+        | "Verdict"
+        | "Classification"
+        | "Trigger"
+        | "Flag"
+        | "Learning"
+        | "Playbook"
+        | "Lot"
       palette_pref: "Sunlit" | "Silvered" | "Tonal" | "High Key" | "Dark"
       play_type:
         | "Sunlit Coastal"
@@ -304,7 +311,9 @@ export type Database = {
         | "Landscape"
         | "Portrait"
         | "Other"
+      play_type_t: "Arbitrage" | "Quality_hold" | "Pending" | "NA"
       priority_level: "P1" | "P2" | "P3"
+      priority_t: "P1" | "P2" | "P3"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -433,13 +442,49 @@ export const Constants = {
   public: {
     Enums: {
       action_status: ["Open", "Actioned", "Dismissed"],
+      action_status_t: [
+        "Open",
+        "Actioned",
+        "Superseded",
+        "Wontfix",
+        "Archived",
+      ],
       arr_status: ["In ARR", "ARR Expired", "Unknown"],
       artist_tier: ["Core", "Satellite", "Speculative", "Retired"],
       confidence_level: ["Low", "Medium", "High"],
+      confidence_t: ["High", "Med", "Low"],
       data_confidence: ["Thin", "Adequate", "Strong"],
       decision_kind: ["Buy", "Watch", "Avoid", "Undecided"],
+      decision_t: [
+        "Reclassify",
+        "Set_Trigger",
+        "Add_Vocab",
+        "Patch_Taxonomy",
+        "Buy",
+        "Skip",
+        "Monitor",
+        "No_Action",
+      ],
       note_scope: ["Artist", "Venue", "System"],
+      note_scope_t: [
+        "Artist",
+        "Venue",
+        "Subject",
+        "Medium",
+        "System",
+        "Portfolio",
+        "Lot",
+      ],
       note_type: ["Verdict", "Trigger", "Flag", "Observation"],
+      note_type_t: [
+        "Verdict",
+        "Classification",
+        "Trigger",
+        "Flag",
+        "Learning",
+        "Playbook",
+        "Lot",
+      ],
       palette_pref: ["Sunlit", "Silvered", "Tonal", "High Key", "Dark"],
       play_type: [
         "Sunlit Coastal",
@@ -450,7 +495,9 @@ export const Constants = {
         "Portrait",
         "Other",
       ],
+      play_type_t: ["Arbitrage", "Quality_hold", "Pending", "NA"],
       priority_level: ["P1", "P2", "P3"],
+      priority_t: ["P1", "P2", "P3"],
     },
   },
 } as const

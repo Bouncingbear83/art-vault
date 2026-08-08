@@ -131,8 +131,8 @@ export function NoteForm({
       play_type: initialNote.play_type ?? "",
       confidence: initialNote.confidence ?? "",
       priority: initialNote.priority ?? "",
-      action_status: initialNote.action_status,
-      valid_from: initialNote.valid_from,
+      action_status: initialNote.action_status ?? "Open",
+      valid_from: initialNote.valid_from ?? new Date().toISOString().slice(0, 10),
       valid_to: initialNote.valid_to ?? "",
       supersedes: initialNote.supersedes ?? "",
       source_ref: initialNote.source_ref ?? "",
@@ -166,13 +166,13 @@ export function NoteForm({
     setError(null);
 
     const checks: [string, string][] = [
-      ["note_type", values.note_type],
-      ["note_scope", values.scope],
-      ["decision_kind", values.decision],
-      ["play_type", values.play_type],
-      ["confidence_level", values.confidence],
-      ["priority_level", values.priority],
-      ["action_status", values.action_status],
+      ["note_type_t", values.note_type],
+      ["note_scope_t", values.scope],
+      ["decision_t", values.decision],
+      ["play_type_t", values.play_type],
+      ["confidence_t", values.confidence],
+      ["priority_t", values.priority],
+      ["action_status_t", values.action_status],
     ];
     for (const [enumName, value] of checks) {
       if (!allowed(enumName, value)) {
@@ -223,7 +223,7 @@ export function NoteForm({
           <EnumSelect
             value={values.note_type}
             onChange={(v) => set("note_type", v)}
-            options={enums?.["note_type"] ?? []}
+            options={enums?.["note_type_t"] ?? []}
             required
           />
         </Field>
@@ -231,7 +231,7 @@ export function NoteForm({
           <EnumSelect
             value={values.scope}
             onChange={(v) => set("scope", v)}
-            options={enums?.["note_scope"] ?? []}
+            options={enums?.["note_scope_t"] ?? []}
             required
           />
         </Field>
@@ -269,21 +269,21 @@ export function NoteForm({
           <EnumSelect
             value={values.decision}
             onChange={(v) => set("decision", v)}
-            options={enums?.["decision_kind"] ?? []}
+            options={enums?.["decision_t"] ?? []}
           />
         </Field>
         <Field label="Play type">
           <EnumSelect
             value={values.play_type}
             onChange={(v) => set("play_type", v)}
-            options={enums?.["play_type"] ?? []}
+            options={enums?.["play_type_t"] ?? []}
           />
         </Field>
         <Field label="Confidence">
           <EnumSelect
             value={values.confidence}
             onChange={(v) => set("confidence", v)}
-            options={enums?.["confidence_level"] ?? []}
+            options={enums?.["confidence_t"] ?? []}
           />
         </Field>
         {isFlag && (
@@ -291,7 +291,7 @@ export function NoteForm({
             <EnumSelect
               value={values.priority}
               onChange={(v) => set("priority", v)}
-              options={enums?.["priority_level"] ?? []}
+              options={enums?.["priority_t"] ?? []}
             />
           </Field>
         )}
@@ -299,7 +299,7 @@ export function NoteForm({
           <EnumSelect
             value={values.action_status}
             onChange={(v) => set("action_status", v)}
-            options={enums?.["action_status"] ?? []}
+            options={enums?.["action_status_t"] ?? []}
             required
             placeholder="Open"
           />
@@ -377,7 +377,7 @@ export function NoteForm({
                       : "border-border text-muted-foreground hover:text-foreground",
                   )}
                 >
-                  {t.label}
+                  {t.tag}
                 </button>
               );
             })}

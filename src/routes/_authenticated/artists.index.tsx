@@ -52,8 +52,8 @@ function ArtistCard({ artist }: { artist: Artist360 }) {
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h2 className="font-display text-xl leading-tight text-foreground">{artist.name}</h2>
-          <p className="num mt-1 text-xs text-muted-foreground">{artist.dates_text ?? "—"}</p>
+          <h2 className="font-display text-xl leading-tight text-foreground">{artist.display_name}</h2>
+          <p className="num mt-1 text-xs text-muted-foreground">{artist.dates ?? "—"}</p>
         </div>
         {(artist.open_flags ?? 0) > 0 && (
           <span className="num inline-flex shrink-0 items-center gap-1.5 text-xs text-primary">

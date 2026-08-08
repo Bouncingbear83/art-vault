@@ -15,6 +15,7 @@ import { Route as AuthenticatedRegisterRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedArtistsIndexRouteImport } from './routes/_authenticated/artists.index'
 import { Route as AuthenticatedArtistsArtistIdRouteImport } from './routes/_authenticated/artists.$artistId'
 import { Route as AuthenticatedNotesNewRouteImport } from './routes/_authenticated/notes.new'
+import { Route as ApiPublicMcpRouteImport } from './routes/api/public/mcp'
 import { Route as AuthenticatedNotesNoteIdEditRouteImport } from './routes/_authenticated/notes.$noteId.edit'
 
 const IndexRoute = IndexRouteImport.update({
@@ -48,6 +49,11 @@ const AuthenticatedNotesNewRoute = AuthenticatedNotesNewRouteImport.update({
   path: '/notes/new',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const ApiPublicMcpRoute = ApiPublicMcpRouteImport.update({
+  id: '/api/public/mcp',
+  path: '/api/public/mcp',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedNotesNoteIdEditRoute =
   AuthenticatedNotesNoteIdEditRouteImport.update({
     id: '/notes/$noteId/edit',
@@ -60,6 +66,7 @@ export interface FileRoutesByFullPath {
   '/register': typeof AuthenticatedRegisterRoute
   '/artists/$artistId': typeof AuthenticatedArtistsArtistIdRoute
   '/notes/new': typeof AuthenticatedNotesNewRoute
+  '/api/public/mcp': typeof ApiPublicMcpRoute
   '/artists/': typeof AuthenticatedArtistsIndexRoute
   '/notes/$noteId/edit': typeof AuthenticatedNotesNoteIdEditRoute
 }
@@ -68,6 +75,7 @@ export interface FileRoutesByTo {
   '/register': typeof AuthenticatedRegisterRoute
   '/artists/$artistId': typeof AuthenticatedArtistsArtistIdRoute
   '/notes/new': typeof AuthenticatedNotesNewRoute
+  '/api/public/mcp': typeof ApiPublicMcpRoute
   '/artists': typeof AuthenticatedArtistsIndexRoute
   '/notes/$noteId/edit': typeof AuthenticatedNotesNoteIdEditRoute
 }
@@ -78,6 +86,7 @@ export interface FileRoutesById {
   '/_authenticated/register': typeof AuthenticatedRegisterRoute
   '/_authenticated/artists/$artistId': typeof AuthenticatedArtistsArtistIdRoute
   '/_authenticated/notes/new': typeof AuthenticatedNotesNewRoute
+  '/api/public/mcp': typeof ApiPublicMcpRoute
   '/_authenticated/artists/': typeof AuthenticatedArtistsIndexRoute
   '/_authenticated/notes/$noteId/edit': typeof AuthenticatedNotesNoteIdEditRoute
 }
@@ -88,6 +97,7 @@ export interface FileRouteTypes {
     | '/register'
     | '/artists/$artistId'
     | '/notes/new'
+    | '/api/public/mcp'
     | '/artists/'
     | '/notes/$noteId/edit'
   fileRoutesByTo: FileRoutesByTo
@@ -96,6 +106,7 @@ export interface FileRouteTypes {
     | '/register'
     | '/artists/$artistId'
     | '/notes/new'
+    | '/api/public/mcp'
     | '/artists'
     | '/notes/$noteId/edit'
   id:
@@ -105,6 +116,7 @@ export interface FileRouteTypes {
     | '/_authenticated/register'
     | '/_authenticated/artists/$artistId'
     | '/_authenticated/notes/new'
+    | '/api/public/mcp'
     | '/_authenticated/artists/'
     | '/_authenticated/notes/$noteId/edit'
   fileRoutesById: FileRoutesById
@@ -112,6 +124,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
+  ApiPublicMcpRoute: typeof ApiPublicMcpRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -158,6 +171,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedNotesNewRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/api/public/mcp': {
+      id: '/api/public/mcp'
+      path: '/api/public/mcp'
+      fullPath: '/api/public/mcp'
+      preLoaderRoute: typeof ApiPublicMcpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/notes/$noteId/edit': {
       id: '/_authenticated/notes/$noteId/edit'
       path: '/notes/$noteId/edit'
@@ -190,6 +210,7 @@ const AuthenticatedRouteRouteWithChildren =
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
+  ApiPublicMcpRoute: ApiPublicMcpRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
