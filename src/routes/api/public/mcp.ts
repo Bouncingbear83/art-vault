@@ -329,8 +329,17 @@ const CORS: Record<string, string> = {
 function authOk(req: Request): boolean {
   const secret = process.env["MCP_SHARED_SECRET"];
   if (!secret) return true; // no secret set: open. Set one before real use.
-  return req.headers.get("authorization") === `Bearer ${secret}`;
+  // Header form (curl, SDK clients)...
+  if (req.headers.get("authorization") === `Bearer ${secret}`) return true;
+  // ...or ?k=<secret>, for clients like Claude whose connector UI has no
+  // bearer-token field. Never echoed back in any response.
+  try {
+    return new URL(req.url).searchParams.get("k") === secret;
+  } catch {
+    return false;
+  }
 }
+
 
 export const Route = createFileRoute("/api/public/mcp")({
   server: {
