@@ -192,16 +192,16 @@ export function NoteForm({
 
     onSubmit(
       {
-        note_type: values.note_type as NoteInput["note_type"],
-        scope: values.scope as NoteInput["scope"],
+        note_type: values.note_type as NonNullable<NoteInput["note_type"]>,
+        scope: values.scope as NonNullable<NoteInput["scope"]>,
         artist_id: values.artist_id || null,
         entity_key: values.entity_key.trim() || null,
-        decision: (values.decision || null) as NoteInput["decision"],
-        play_type: (values.play_type || null) as NoteInput["play_type"],
-        confidence: (values.confidence || null) as NoteInput["confidence"],
+        decision: (values.decision || null) as NonNullable<NoteInput["decision"]> | null,
+        play_type: (values.play_type || null) as NonNullable<NoteInput["play_type"]> | null,
+        confidence: (values.confidence || null) as NonNullable<NoteInput["confidence"]> | null,
         priority:
           values.note_type === "Flag"
-            ? ((values.priority || null) as NoteInput["priority"])
+            ? ((values.priority || null) as NonNullable<NoteInput["priority"]> | null)
             : null,
         action_status: values.action_status as NonNullable<NoteInput["action_status"]>,
         valid_from: values.valid_from,
