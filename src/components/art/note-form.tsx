@@ -203,7 +203,7 @@ export function NoteForm({
           values.note_type === "Flag"
             ? ((values.priority || null) as NoteInput["priority"])
             : null,
-        action_status: values.action_status as NoteInput["action_status"],
+        action_status: values.action_status as NonNullable<NoteInput["action_status"]>,
         valid_from: values.valid_from,
         valid_to: values.valid_to || null,
         supersedes: values.supersedes || null,
