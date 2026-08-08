@@ -96,11 +96,10 @@ function ArtistPage() {
       {/* tombstone wall label */}
       <header className="mt-4 border-b border-border pb-7">
         <h1 className="font-display text-4xl leading-none text-foreground sm:text-5xl">
-          {artist.name}
+          {artist.display_name}
         </h1>
         <p className="num mt-2 text-sm text-muted-foreground">
-          {artist.dates_text ?? "—"}
-          {artist.nationality ? ` · ${artist.nationality}` : ""}
+          {artist.dates ?? "—"}
         </p>
         <div className="mt-4 flex flex-wrap items-center gap-2">
           <Chip tone="ochre">{artist.tier}</Chip>
@@ -113,22 +112,19 @@ function ArtistPage() {
       {/* quant strip */}
       <section className="wall-card mt-6 grid grid-cols-2 gap-x-6 gap-y-5 p-5 sm:grid-cols-4 lg:grid-cols-5">
         <Stat label="Median UK hammer" value={gbp(artist.median_uk_hammer_gbp)} />
-        <Stat label="Mean UK hammer" value={gbp(artist.mean_uk_hammer_gbp)} />
-        <Stat label="Low" value={gbp(artist.low_gbp)} />
-        <Stat label="High" value={gbp(artist.high_gbp)} />
+        <Stat label="Exit vs regional" value={pct(artist.exit_vs_regional_spread)} />
+        <Stat label="In-zone realisation" value={pct(artist.in_zone_realisation)} />
         <Stat label="Sell-through" value={pct(artist.sell_through_pct)} tone="harbour" />
         <Stat
           label="n UK auto oil"
           value={artist.n_uk_auto_oil ?? "—"}
           tone={thin ? "ochre" : "default"}
         />
-        <Stat label="n lots total" value={artist.n_lots_total ?? "—"} />
-        <Stat label="Last sale" value={formatDate(artist.last_sale_date)} />
         <Stat label="Open flags" value={artist.open_flags ?? 0} tone="ochre" />
         <div>
           <p className="label-caps">Data confidence</p>
           <div className="mt-1">
-            <Chip tone={artist.data_confidence === "Thin" ? "ochre" : "harbour"}>
+            <Chip tone={artist.data_confidence === "Low" ? "ochre" : "harbour"}>
               {artist.data_confidence ?? "—"}
             </Chip>
           </div>

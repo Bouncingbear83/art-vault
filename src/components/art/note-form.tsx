@@ -131,7 +131,7 @@ export function NoteForm({
       play_type: initialNote.play_type ?? "",
       confidence: initialNote.confidence ?? "",
       priority: initialNote.priority ?? "",
-      action_status: initialNote.action_status,
+      action_status: initialNote.action_status ?? "Open",
       valid_from: initialNote.valid_from ?? new Date().toISOString().slice(0, 10),
       valid_to: initialNote.valid_to ?? "",
       supersedes: initialNote.supersedes ?? "",
