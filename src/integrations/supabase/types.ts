@@ -274,6 +274,14 @@ export type Database = {
         }
         Relationships: []
       }
+      vocab_enum: {
+        Row: {
+          enum_name: string | null
+          sort_order: number | null
+          value: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       is_owner: { Args: never; Returns: boolean }
