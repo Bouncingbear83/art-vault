@@ -1,0 +1,36 @@
+// A. add import at top
+import { supabase } from "@/integrations/supabase/client";
+
+// B. replace the MOCK DATA block + `useState(INITIAL)` with:
+const [notes, setNotes] = useState([]);
+useEffect(() => {
+  (async () => {
+    const { data } = await supabase
+      .from("notes")
+      .select("*, artists(display_name), note_tags(tag)")
+      .eq("action_status", "Open")                 // no expired filter: grey, don't hide
+      .order("priority", { ascending: true, nullsFirst: false })
+      .order("valid_from", { ascending: false });
+    setNotes((data ?? []).map((r) => ({
+      ...r,
+      tags: (r.note_tags ?? []).map((x) => x.tag),
+      display_name: r.artists?.display_name ?? r.artist_id,
+    })));
+  })();
+}, []);
+
+// C. replace the LOCAL HANDLERS `resolve` with (optimistic + rollback):
+async function resolve(note, status) {
+  setNotes((ns) => ns.filter((n) => n.note_id !== note.note_id));
+  setUndo({ note, status });
+  const { error } = await supabase.from("notes").update({ action_status: status }).eq("note_id", note.note_id);
+  if (error) { setNotes((ns) => [note, ...ns]); setUndo(null); }
+}
+async function undoResolve() {
+  if (!undo) return;
+  const n = undo.note; setNotes((ns) => [n, ...ns]); setUndo(null);
+  await supabase.from("notes").update({ action_status: "Open" }).eq("note_id", n.note_id);
+}
+
+// D. drop the ARTIST const; in noteTitle/noteKicker swap
+//    `ARTIST[n.artist_id] || n.artist_id`  ->  `n.display_name || n.artist_id`
