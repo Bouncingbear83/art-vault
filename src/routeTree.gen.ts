@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthenticatedRegisterRouteImport } from './routes/_authenticated/register'
 import { Route as AuthenticatedArtistsIndexRouteImport } from './routes/_authenticated/artists.index'
+import { Route as AuthenticatedArtistsArtistIdRouteImport } from './routes/_authenticated/artists.$artistId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -34,15 +35,23 @@ const AuthenticatedArtistsIndexRoute =
     path: '/artists/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedArtistsArtistIdRoute =
+  AuthenticatedArtistsArtistIdRouteImport.update({
+    id: '/artists/$artistId',
+    path: '/artists/$artistId',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/register': typeof AuthenticatedRegisterRoute
+  '/artists/$artistId': typeof AuthenticatedArtistsArtistIdRoute
   '/artists/': typeof AuthenticatedArtistsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/register': typeof AuthenticatedRegisterRoute
+  '/artists/$artistId': typeof AuthenticatedArtistsArtistIdRoute
   '/artists': typeof AuthenticatedArtistsIndexRoute
 }
 export interface FileRoutesById {
@@ -50,18 +59,20 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/_authenticated/register': typeof AuthenticatedRegisterRoute
+  '/_authenticated/artists/$artistId': typeof AuthenticatedArtistsArtistIdRoute
   '/_authenticated/artists/': typeof AuthenticatedArtistsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/register' | '/artists/'
+  fullPaths: '/' | '/register' | '/artists/$artistId' | '/artists/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/register' | '/artists'
+  to: '/' | '/register' | '/artists/$artistId' | '/artists'
   id:
     | '__root__'
     | '/'
     | '/_authenticated'
     | '/_authenticated/register'
+    | '/_authenticated/artists/$artistId'
     | '/_authenticated/artists/'
   fileRoutesById: FileRoutesById
 }
@@ -100,16 +111,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedArtistsIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/artists/$artistId': {
+      id: '/_authenticated/artists/$artistId'
+      path: '/artists/$artistId'
+      fullPath: '/artists/$artistId'
+      preLoaderRoute: typeof AuthenticatedArtistsArtistIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedRegisterRoute: typeof AuthenticatedRegisterRoute
+  AuthenticatedArtistsArtistIdRoute: typeof AuthenticatedArtistsArtistIdRoute
   AuthenticatedArtistsIndexRoute: typeof AuthenticatedArtistsIndexRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedRegisterRoute: AuthenticatedRegisterRoute,
+  AuthenticatedArtistsArtistIdRoute: AuthenticatedArtistsArtistIdRoute,
   AuthenticatedArtistsIndexRoute: AuthenticatedArtistsIndexRoute,
 }
 
