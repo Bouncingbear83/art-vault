@@ -228,14 +228,21 @@ export const Route = createFileRoute('/api/public/comps-rollup')({
             ? ((body as { rows: Row[] }).rows)
             : null
 
-        if (!rows) {
-          return new Response(JSON.stringify({ error: 'Expected { rows: [...] } or an array' }), {
-            status: 400,
-            headers: { 'content-type': 'application/json' },
-          })
+        const received = Array.isArray(rows) ? rows.length : 0
+        if (!Array.isArray(rows) || rows.length < 1000) {
+          return new Response(
+            JSON.stringify({
+              error: 'partial_read',
+              received,
+              min_expected: 1000,
+              message: 'Too few Comps rows posted; skipping upsert to avoid overwriting comps_rollup with a partial read.',
+            }),
+            { status: 422, headers: { 'content-type': 'application/json' } },
+          )
         }
 
         const computed = computeRollup(rows)
+
 
         const { supabaseAdmin } = await import('@/integrations/supabase/client.server')
         const { error } = await supabaseAdmin
