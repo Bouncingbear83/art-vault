@@ -241,9 +241,8 @@ export const Route = createFileRoute('/api/public/comps-rollup')({
           )
         }
 
-
-
         const computed = computeRollup(rows)
+
 
         const { supabaseAdmin } = await import('@/integrations/supabase/client.server')
         const { error } = await supabaseAdmin
