@@ -52,6 +52,7 @@ export type Database = {
       }
       comps_rollup: {
         Row: {
+          anchor_id: string | null
           arb_edge_raw: number | null
           arb_read: string | null
           artist_id: string
@@ -61,6 +62,7 @@ export type Database = {
           exit_strong_n: number | null
           exit_vs_regional_spread: number | null
           in_zone_realisation: number | null
+          level_read: Database["public"]["Enums"]["level_t"] | null
           matched_n: number | null
           matched_spread: number | null
           median_realisation: number | null
@@ -68,12 +70,18 @@ export type Database = {
           n_buy_regional: number | null
           n_exit_strong: number | null
           n_uk_auto_oil: number | null
+          price_cagr_5y: number | null
+          price_cagr_full: number | null
           sell_through_pct: number | null
+          sell_through_trend: number | null
           spread_trusted: boolean | null
           thin_exit_flag: boolean | null
+          trend_read: Database["public"]["Enums"]["trend_t"] | null
           updated_at: string | null
+          vs_anchor_ratio: number | null
         }
         Insert: {
+          anchor_id?: string | null
           arb_edge_raw?: number | null
           arb_read?: string | null
           artist_id: string
@@ -83,6 +91,7 @@ export type Database = {
           exit_strong_n?: number | null
           exit_vs_regional_spread?: number | null
           in_zone_realisation?: number | null
+          level_read?: Database["public"]["Enums"]["level_t"] | null
           matched_n?: number | null
           matched_spread?: number | null
           median_realisation?: number | null
@@ -90,12 +99,18 @@ export type Database = {
           n_buy_regional?: number | null
           n_exit_strong?: number | null
           n_uk_auto_oil?: number | null
+          price_cagr_5y?: number | null
+          price_cagr_full?: number | null
           sell_through_pct?: number | null
+          sell_through_trend?: number | null
           spread_trusted?: boolean | null
           thin_exit_flag?: boolean | null
+          trend_read?: Database["public"]["Enums"]["trend_t"] | null
           updated_at?: string | null
+          vs_anchor_ratio?: number | null
         }
         Update: {
+          anchor_id?: string | null
           arb_edge_raw?: number | null
           arb_read?: string | null
           artist_id?: string
@@ -105,6 +120,7 @@ export type Database = {
           exit_strong_n?: number | null
           exit_vs_regional_spread?: number | null
           in_zone_realisation?: number | null
+          level_read?: Database["public"]["Enums"]["level_t"] | null
           matched_n?: number | null
           matched_spread?: number | null
           median_realisation?: number | null
@@ -112,12 +128,38 @@ export type Database = {
           n_buy_regional?: number | null
           n_exit_strong?: number | null
           n_uk_auto_oil?: number | null
+          price_cagr_5y?: number | null
+          price_cagr_full?: number | null
           sell_through_pct?: number | null
+          sell_through_trend?: number | null
           spread_trusted?: boolean | null
           thin_exit_flag?: boolean | null
+          trend_read?: Database["public"]["Enums"]["trend_t"] | null
           updated_at?: string | null
+          vs_anchor_ratio?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "comps_rollup_anchor_id_fkey"
+            columns: ["anchor_id"]
+            isOneToOne: false
+            referencedRelation: "artist_360"
+            referencedColumns: ["artist_id"]
+          },
+          {
+            foreignKeyName: "comps_rollup_anchor_id_fkey"
+            columns: ["anchor_id"]
+            isOneToOne: false
+            referencedRelation: "artists"
+            referencedColumns: ["artist_id"]
+          },
+          {
+            foreignKeyName: "comps_rollup_anchor_id_fkey"
+            columns: ["anchor_id"]
+            isOneToOne: false
+            referencedRelation: "book_screen"
+            referencedColumns: ["artist_id"]
+          },
           {
             foreignKeyName: "comps_rollup_artist_id_fkey"
             columns: ["artist_id"]
@@ -130,6 +172,71 @@ export type Database = {
             columns: ["artist_id"]
             isOneToOne: true
             referencedRelation: "artists"
+            referencedColumns: ["artist_id"]
+          },
+          {
+            foreignKeyName: "comps_rollup_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: true
+            referencedRelation: "book_screen"
+            referencedColumns: ["artist_id"]
+          },
+        ]
+      }
+      comps_timeseries: {
+        Row: {
+          artist_id: string
+          mean_hammer_gbp: number | null
+          median_hammer_gbp: number | null
+          median_realisation: number | null
+          medium_class: string
+          n: number | null
+          period_year: number
+          sell_through_pct: number | null
+          venue_type: string
+        }
+        Insert: {
+          artist_id: string
+          mean_hammer_gbp?: number | null
+          median_hammer_gbp?: number | null
+          median_realisation?: number | null
+          medium_class?: string
+          n?: number | null
+          period_year: number
+          sell_through_pct?: number | null
+          venue_type?: string
+        }
+        Update: {
+          artist_id?: string
+          mean_hammer_gbp?: number | null
+          median_hammer_gbp?: number | null
+          median_realisation?: number | null
+          medium_class?: string
+          n?: number | null
+          period_year?: number
+          sell_through_pct?: number | null
+          venue_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "comps_timeseries_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "artist_360"
+            referencedColumns: ["artist_id"]
+          },
+          {
+            foreignKeyName: "comps_timeseries_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "artists"
+            referencedColumns: ["artist_id"]
+          },
+          {
+            foreignKeyName: "comps_timeseries_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "book_screen"
             referencedColumns: ["artist_id"]
           },
         ]
@@ -244,11 +351,73 @@ export type Database = {
             referencedColumns: ["artist_id"]
           },
           {
+            foreignKeyName: "notes_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "book_screen"
+            referencedColumns: ["artist_id"]
+          },
+          {
             foreignKeyName: "notes_supersedes_fkey"
             columns: ["supersedes"]
             isOneToOne: false
             referencedRelation: "notes"
             referencedColumns: ["note_id"]
+          },
+        ]
+      }
+      triggers: {
+        Row: {
+          artist_id: string
+          basis: string | null
+          medium_class: string | null
+          min_longest_cm: number | null
+          note: string | null
+          tier_label: string
+          updated_at: string | null
+          walkaway_gbp: number | null
+        }
+        Insert: {
+          artist_id: string
+          basis?: string | null
+          medium_class?: string | null
+          min_longest_cm?: number | null
+          note?: string | null
+          tier_label: string
+          updated_at?: string | null
+          walkaway_gbp?: number | null
+        }
+        Update: {
+          artist_id?: string
+          basis?: string | null
+          medium_class?: string | null
+          min_longest_cm?: number | null
+          note?: string | null
+          tier_label?: string
+          updated_at?: string | null
+          walkaway_gbp?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "triggers_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "artist_360"
+            referencedColumns: ["artist_id"]
+          },
+          {
+            foreignKeyName: "triggers_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "artists"
+            referencedColumns: ["artist_id"]
+          },
+          {
+            foreignKeyName: "triggers_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "book_screen"
+            referencedColumns: ["artist_id"]
           },
         ]
       }
@@ -293,6 +462,22 @@ export type Database = {
         }
         Relationships: []
       }
+      book_screen: {
+        Row: {
+          artist_id: string | null
+          display_name: string | null
+          exit_vs_regional_spread: number | null
+          level_read: Database["public"]["Enums"]["level_t"] | null
+          median_uk_hammer_gbp: number | null
+          n_exit_strong: number | null
+          open_flags: number | null
+          play_type: Database["public"]["Enums"]["play_type_t"] | null
+          price_cagr_5y: number | null
+          trend_read: Database["public"]["Enums"]["trend_t"] | null
+          vs_anchor_ratio: number | null
+        }
+        Relationships: []
+      }
       vocab_enum: {
         Row: {
           enum_name: string | null
@@ -328,6 +513,7 @@ export type Database = {
         | "Skip"
         | "Monitor"
         | "No_Action"
+      level_t: "Cheap" | "Fair" | "Rich" | "Unknown"
       note_scope: "Artist" | "Venue" | "System"
       note_scope_t:
         | "Artist"
@@ -358,6 +544,7 @@ export type Database = {
       play_type_t: "Arbitrage" | "Quality_hold" | "Pending" | "NA"
       priority_level: "P1" | "P2" | "P3"
       priority_t: "P1" | "P2" | "P3"
+      trend_t: "Up" | "Flat" | "Down" | "Unknown"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -509,6 +696,7 @@ export const Constants = {
         "Monitor",
         "No_Action",
       ],
+      level_t: ["Cheap", "Fair", "Rich", "Unknown"],
       note_scope: ["Artist", "Venue", "System"],
       note_scope_t: [
         "Artist",
@@ -542,6 +730,7 @@ export const Constants = {
       play_type_t: ["Arbitrage", "Quality_hold", "Pending", "NA"],
       priority_level: ["P1", "P2", "P3"],
       priority_t: ["P1", "P2", "P3"],
+      trend_t: ["Up", "Flat", "Down", "Unknown"],
     },
   },
 } as const
