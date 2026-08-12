@@ -229,7 +229,7 @@ export const Route = createFileRoute('/api/public/comps-rollup')({
             : null
 
         const received = Array.isArray(rows) ? rows.length : 0
-        if (received < 1000) {
+        if (!Array.isArray(rows) || rows.length < 1000) {
           return new Response(
             JSON.stringify({
               error: 'partial_read',
@@ -240,6 +240,7 @@ export const Route = createFileRoute('/api/public/comps-rollup')({
             { status: 422, headers: { 'content-type': 'application/json' } },
           )
         }
+
 
 
         const computed = computeRollup(rows)
