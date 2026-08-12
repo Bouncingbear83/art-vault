@@ -20,6 +20,7 @@ import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[
 import { Route as AuthenticatedArtistsIndexRouteImport } from './routes/_authenticated/artists.index'
 import { Route as AuthenticatedArtistsArtistIdRouteImport } from './routes/_authenticated/artists.$artistId'
 import { Route as AuthenticatedNotesNewRouteImport } from './routes/_authenticated/notes.new'
+import { Route as ApiPublicCompsRollupRouteImport } from './routes/api/public/comps-rollup'
 import { Route as AuthenticatedNotesNoteIdEditRouteImport } from './routes/_authenticated/notes.$noteId.edit'
 
 const IndexRoute = IndexRouteImport.update({
@@ -81,6 +82,11 @@ const AuthenticatedNotesNewRoute = AuthenticatedNotesNewRouteImport.update({
   path: '/notes/new',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const ApiPublicCompsRollupRoute = ApiPublicCompsRollupRouteImport.update({
+  id: '/api/public/comps-rollup',
+  path: '/api/public/comps-rollup',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedNotesNoteIdEditRoute =
   AuthenticatedNotesNoteIdEditRouteImport.update({
     id: '/notes/$noteId/edit',
@@ -98,6 +104,7 @@ export interface FileRoutesByFullPath {
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/artists/$artistId': typeof AuthenticatedArtistsArtistIdRoute
   '/notes/new': typeof AuthenticatedNotesNewRoute
+  '/api/public/comps-rollup': typeof ApiPublicCompsRollupRoute
   '/artists/': typeof AuthenticatedArtistsIndexRoute
   '/notes/$noteId/edit': typeof AuthenticatedNotesNoteIdEditRoute
 }
@@ -111,6 +118,7 @@ export interface FileRoutesByTo {
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/artists/$artistId': typeof AuthenticatedArtistsArtistIdRoute
   '/notes/new': typeof AuthenticatedNotesNewRoute
+  '/api/public/comps-rollup': typeof ApiPublicCompsRollupRoute
   '/artists': typeof AuthenticatedArtistsIndexRoute
   '/notes/$noteId/edit': typeof AuthenticatedNotesNoteIdEditRoute
 }
@@ -126,6 +134,7 @@ export interface FileRoutesById {
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/_authenticated/artists/$artistId': typeof AuthenticatedArtistsArtistIdRoute
   '/_authenticated/notes/new': typeof AuthenticatedNotesNewRoute
+  '/api/public/comps-rollup': typeof ApiPublicCompsRollupRoute
   '/_authenticated/artists/': typeof AuthenticatedArtistsIndexRoute
   '/_authenticated/notes/$noteId/edit': typeof AuthenticatedNotesNoteIdEditRoute
 }
@@ -141,6 +150,7 @@ export interface FileRouteTypes {
     | '/.mcp/invoke-tool/$tool'
     | '/artists/$artistId'
     | '/notes/new'
+    | '/api/public/comps-rollup'
     | '/artists/'
     | '/notes/$noteId/edit'
   fileRoutesByTo: FileRoutesByTo
@@ -154,6 +164,7 @@ export interface FileRouteTypes {
     | '/.mcp/invoke-tool/$tool'
     | '/artists/$artistId'
     | '/notes/new'
+    | '/api/public/comps-rollup'
     | '/artists'
     | '/notes/$noteId/edit'
   id:
@@ -168,6 +179,7 @@ export interface FileRouteTypes {
     | '/.mcp/invoke-tool/$tool'
     | '/_authenticated/artists/$artistId'
     | '/_authenticated/notes/new'
+    | '/api/public/comps-rollup'
     | '/_authenticated/artists/'
     | '/_authenticated/notes/$noteId/edit'
   fileRoutesById: FileRoutesById
@@ -180,6 +192,7 @@ export interface RootRouteChildren {
   Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
   Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
+  ApiPublicCompsRollupRoute: typeof ApiPublicCompsRollupRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -261,6 +274,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedNotesNewRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/api/public/comps-rollup': {
+      id: '/api/public/comps-rollup'
+      path: '/api/public/comps-rollup'
+      fullPath: '/api/public/comps-rollup'
+      preLoaderRoute: typeof ApiPublicCompsRollupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/notes/$noteId/edit': {
       id: '/_authenticated/notes/$noteId/edit'
       path: '/notes/$noteId/edit'
@@ -299,6 +319,7 @@ const rootRouteChildren: RootRouteChildren = {
     Char91DotwellKnownChar93OauthProtectedResourceRoute,
   DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
   Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
+  ApiPublicCompsRollupRoute: ApiPublicCompsRollupRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
