@@ -50,193 +50,218 @@ export type Database = {
         }
         Relationships: []
       }
-      comps_rollup: {
+      comps: {
         Row: {
-          anchor_id: string | null
-          arb_edge_raw: number | null
-          arb_read: string | null
-          artist_id: string
-          buy_edge_flag: string | null
-          buy_regional_realisation: number | null
-          data_confidence: Database["public"]["Enums"]["confidence_t"] | null
-          exit_strong_n: number | null
-          exit_vs_regional_spread: number | null
-          in_zone_realisation: number | null
-          level_read: Database["public"]["Enums"]["level_t"] | null
-          matched_n: number | null
-          matched_spread: number | null
-          median_realisation: number | null
-          median_uk_hammer_gbp: number | null
-          n_buy_regional: number | null
-          n_exit_strong: number | null
-          n_uk_auto_oil: number | null
-          price_cagr_5y: number | null
-          price_cagr_full: number | null
-          sell_through_pct: number | null
-          sell_through_trend: number | null
-          spread_trusted: boolean | null
-          thin_exit_flag: boolean | null
-          trend_read: Database["public"]["Enums"]["trend_t"] | null
-          updated_at: string | null
-          vs_anchor_ratio: number | null
+          artist: string | null
+          artist_id: string | null
+          authorship: string | null
+          auto_ref: string | null
+          buy_candidate: string | null
+          condition_checked: string | null
+          confirmed_ref: string | null
+          currency: string | null
+          dup_flag: string | null
+          est_high: number | null
+          est_low: number | null
+          est_mid_gbp: number | null
+          fx: number | null
+          geo_resolved: string | null
+          h_cm: number | null
+          hammer_equiv_gbp: number | null
+          in_zone: string | null
+          include_in_stats: string | null
+          loaded_at: string
+          longest_cm: number | null
+          medium_class: string | null
+          medium_pref: string | null
+          medium_raw: string | null
+          palette: string | null
+          palette_pref_hit: string | null
+          realisation: number | null
+          realized_basis: string | null
+          realized_gbp: number | null
+          realized_native: number | null
+          ref: string | null
+          remote_haircut_pct: number | null
+          repeat_flag: string | null
+          sale_date: string | null
+          sale_key: string
+          sheet_grade: string | null
+          status: string | null
+          subject: string | null
+          times_seen: number | null
+          title: string | null
+          trigger_gbp: number | null
+          venue: string | null
+          venue_canonical: string | null
+          vtype_resolved: string | null
+          w_cm: number | null
+          wall_presence: string | null
         }
         Insert: {
-          anchor_id?: string | null
-          arb_edge_raw?: number | null
-          arb_read?: string | null
-          artist_id: string
-          buy_edge_flag?: string | null
-          buy_regional_realisation?: number | null
-          data_confidence?: Database["public"]["Enums"]["confidence_t"] | null
-          exit_strong_n?: number | null
-          exit_vs_regional_spread?: number | null
-          in_zone_realisation?: number | null
-          level_read?: Database["public"]["Enums"]["level_t"] | null
-          matched_n?: number | null
-          matched_spread?: number | null
-          median_realisation?: number | null
-          median_uk_hammer_gbp?: number | null
-          n_buy_regional?: number | null
-          n_exit_strong?: number | null
-          n_uk_auto_oil?: number | null
-          price_cagr_5y?: number | null
-          price_cagr_full?: number | null
-          sell_through_pct?: number | null
-          sell_through_trend?: number | null
-          spread_trusted?: boolean | null
-          thin_exit_flag?: boolean | null
-          trend_read?: Database["public"]["Enums"]["trend_t"] | null
-          updated_at?: string | null
-          vs_anchor_ratio?: number | null
+          artist?: string | null
+          artist_id?: string | null
+          authorship?: string | null
+          auto_ref?: string | null
+          buy_candidate?: string | null
+          condition_checked?: string | null
+          confirmed_ref?: string | null
+          currency?: string | null
+          dup_flag?: string | null
+          est_high?: number | null
+          est_low?: number | null
+          est_mid_gbp?: number | null
+          fx?: number | null
+          geo_resolved?: string | null
+          h_cm?: number | null
+          hammer_equiv_gbp?: number | null
+          in_zone?: string | null
+          include_in_stats?: string | null
+          loaded_at?: string
+          longest_cm?: number | null
+          medium_class?: string | null
+          medium_pref?: string | null
+          medium_raw?: string | null
+          palette?: string | null
+          palette_pref_hit?: string | null
+          realisation?: number | null
+          realized_basis?: string | null
+          realized_gbp?: number | null
+          realized_native?: number | null
+          ref?: string | null
+          remote_haircut_pct?: number | null
+          repeat_flag?: string | null
+          sale_date?: string | null
+          sale_key: string
+          sheet_grade?: string | null
+          status?: string | null
+          subject?: string | null
+          times_seen?: number | null
+          title?: string | null
+          trigger_gbp?: number | null
+          venue?: string | null
+          venue_canonical?: string | null
+          vtype_resolved?: string | null
+          w_cm?: number | null
+          wall_presence?: string | null
         }
         Update: {
-          anchor_id?: string | null
-          arb_edge_raw?: number | null
-          arb_read?: string | null
-          artist_id?: string
-          buy_edge_flag?: string | null
-          buy_regional_realisation?: number | null
-          data_confidence?: Database["public"]["Enums"]["confidence_t"] | null
-          exit_strong_n?: number | null
-          exit_vs_regional_spread?: number | null
-          in_zone_realisation?: number | null
-          level_read?: Database["public"]["Enums"]["level_t"] | null
-          matched_n?: number | null
-          matched_spread?: number | null
-          median_realisation?: number | null
-          median_uk_hammer_gbp?: number | null
-          n_buy_regional?: number | null
-          n_exit_strong?: number | null
-          n_uk_auto_oil?: number | null
-          price_cagr_5y?: number | null
-          price_cagr_full?: number | null
-          sell_through_pct?: number | null
-          sell_through_trend?: number | null
-          spread_trusted?: boolean | null
-          thin_exit_flag?: boolean | null
-          trend_read?: Database["public"]["Enums"]["trend_t"] | null
-          updated_at?: string | null
-          vs_anchor_ratio?: number | null
+          artist?: string | null
+          artist_id?: string | null
+          authorship?: string | null
+          auto_ref?: string | null
+          buy_candidate?: string | null
+          condition_checked?: string | null
+          confirmed_ref?: string | null
+          currency?: string | null
+          dup_flag?: string | null
+          est_high?: number | null
+          est_low?: number | null
+          est_mid_gbp?: number | null
+          fx?: number | null
+          geo_resolved?: string | null
+          h_cm?: number | null
+          hammer_equiv_gbp?: number | null
+          in_zone?: string | null
+          include_in_stats?: string | null
+          loaded_at?: string
+          longest_cm?: number | null
+          medium_class?: string | null
+          medium_pref?: string | null
+          medium_raw?: string | null
+          palette?: string | null
+          palette_pref_hit?: string | null
+          realisation?: number | null
+          realized_basis?: string | null
+          realized_gbp?: number | null
+          realized_native?: number | null
+          ref?: string | null
+          remote_haircut_pct?: number | null
+          repeat_flag?: string | null
+          sale_date?: string | null
+          sale_key?: string
+          sheet_grade?: string | null
+          status?: string | null
+          subject?: string | null
+          times_seen?: number | null
+          title?: string | null
+          trigger_gbp?: number | null
+          venue?: string | null
+          venue_canonical?: string | null
+          vtype_resolved?: string | null
+          w_cm?: number | null
+          wall_presence?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "comps_rollup_anchor_id_fkey"
-            columns: ["anchor_id"]
-            isOneToOne: false
-            referencedRelation: "artist_360"
-            referencedColumns: ["artist_id"]
-          },
-          {
-            foreignKeyName: "comps_rollup_anchor_id_fkey"
-            columns: ["anchor_id"]
-            isOneToOne: false
-            referencedRelation: "artists"
-            referencedColumns: ["artist_id"]
-          },
-          {
-            foreignKeyName: "comps_rollup_anchor_id_fkey"
-            columns: ["anchor_id"]
-            isOneToOne: false
-            referencedRelation: "book_screen"
-            referencedColumns: ["artist_id"]
-          },
-          {
-            foreignKeyName: "comps_rollup_artist_id_fkey"
-            columns: ["artist_id"]
-            isOneToOne: true
-            referencedRelation: "artist_360"
-            referencedColumns: ["artist_id"]
-          },
-          {
-            foreignKeyName: "comps_rollup_artist_id_fkey"
-            columns: ["artist_id"]
-            isOneToOne: true
-            referencedRelation: "artists"
-            referencedColumns: ["artist_id"]
-          },
-          {
-            foreignKeyName: "comps_rollup_artist_id_fkey"
-            columns: ["artist_id"]
-            isOneToOne: true
-            referencedRelation: "book_screen"
-            referencedColumns: ["artist_id"]
-          },
-        ]
+        Relationships: []
       }
-      comps_timeseries: {
+      comps_raw: {
         Row: {
-          artist_id: string
-          mean_hammer_gbp: number | null
-          median_hammer_gbp: number | null
-          median_realisation: number | null
-          medium_class: string
-          n: number | null
-          period_year: number
-          sell_through_pct: number | null
-          venue_type: string
+          artist_id: string | null
+          authorship: string | null
+          est_mid_gbp: number | null
+          geo_resolved: string | null
+          hammer_equiv_gbp: number | null
+          in_zone: boolean | null
+          loaded_at: string | null
+          longest_cm: number | null
+          medium_class: string | null
+          realisation: number | null
+          sale_date: string | null
+          sale_key: string
+          status: string | null
+          subject: string | null
+          title: string | null
+          vtype_resolved: string | null
         }
         Insert: {
-          artist_id: string
-          mean_hammer_gbp?: number | null
-          median_hammer_gbp?: number | null
-          median_realisation?: number | null
-          medium_class?: string
-          n?: number | null
-          period_year: number
-          sell_through_pct?: number | null
-          venue_type?: string
+          artist_id?: string | null
+          authorship?: string | null
+          est_mid_gbp?: number | null
+          geo_resolved?: string | null
+          hammer_equiv_gbp?: number | null
+          in_zone?: boolean | null
+          loaded_at?: string | null
+          longest_cm?: number | null
+          medium_class?: string | null
+          realisation?: number | null
+          sale_date?: string | null
+          sale_key: string
+          status?: string | null
+          subject?: string | null
+          title?: string | null
+          vtype_resolved?: string | null
         }
         Update: {
-          artist_id?: string
-          mean_hammer_gbp?: number | null
-          median_hammer_gbp?: number | null
-          median_realisation?: number | null
-          medium_class?: string
-          n?: number | null
-          period_year?: number
-          sell_through_pct?: number | null
-          venue_type?: string
+          artist_id?: string | null
+          authorship?: string | null
+          est_mid_gbp?: number | null
+          geo_resolved?: string | null
+          hammer_equiv_gbp?: number | null
+          in_zone?: boolean | null
+          loaded_at?: string | null
+          longest_cm?: number | null
+          medium_class?: string | null
+          realisation?: number | null
+          sale_date?: string | null
+          sale_key?: string
+          status?: string | null
+          subject?: string | null
+          title?: string | null
+          vtype_resolved?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "comps_timeseries_artist_id_fkey"
+            foreignKeyName: "comps_raw_artist_id_fkey"
             columns: ["artist_id"]
             isOneToOne: false
             referencedRelation: "artist_360"
             referencedColumns: ["artist_id"]
           },
           {
-            foreignKeyName: "comps_timeseries_artist_id_fkey"
+            foreignKeyName: "comps_raw_artist_id_fkey"
             columns: ["artist_id"]
             isOneToOne: false
             referencedRelation: "artists"
-            referencedColumns: ["artist_id"]
-          },
-          {
-            foreignKeyName: "comps_timeseries_artist_id_fkey"
-            columns: ["artist_id"]
-            isOneToOne: false
-            referencedRelation: "book_screen"
             referencedColumns: ["artist_id"]
           },
         ]
@@ -351,13 +376,6 @@ export type Database = {
             referencedColumns: ["artist_id"]
           },
           {
-            foreignKeyName: "notes_artist_id_fkey"
-            columns: ["artist_id"]
-            isOneToOne: false
-            referencedRelation: "book_screen"
-            referencedColumns: ["artist_id"]
-          },
-          {
             foreignKeyName: "notes_supersedes_fkey"
             columns: ["supersedes"]
             isOneToOne: false
@@ -412,13 +430,6 @@ export type Database = {
             referencedRelation: "artists"
             referencedColumns: ["artist_id"]
           },
-          {
-            foreignKeyName: "triggers_artist_id_fkey"
-            columns: ["artist_id"]
-            isOneToOne: false
-            referencedRelation: "book_screen"
-            referencedColumns: ["artist_id"]
-          },
         ]
       }
       vocab_note_tag: {
@@ -440,41 +451,66 @@ export type Database = {
     Views: {
       artist_360: {
         Row: {
-          arb_read: string | null
           arr_status: string | null
           artist_id: string | null
-          buy_regional_realisation: number | null
           data_confidence: Database["public"]["Enums"]["confidence_t"] | null
           dates: string | null
           display_name: string | null
           exit_vs_regional_spread: number | null
           in_zone_realisation: number | null
           median_uk_hammer_gbp: number | null
-          n_buy_regional: number | null
-          n_exit_strong: number | null
           n_uk_auto_oil: number | null
           open_flags: number | null
           palette_pref: string | null
           play_type: Database["public"]["Enums"]["play_type_t"] | null
           sell_through_pct: number | null
-          spread_trusted: boolean | null
           tier: string | null
         }
         Relationships: []
       }
-      book_screen: {
+      comps_rollup: {
+        Row: {
+          anchor_id: string | null
+          arb_edge_raw: number | null
+          arb_read: string | null
+          artist_id: string | null
+          buy_edge_flag: string | null
+          buy_regional_realisation: number | null
+          data_confidence: Database["public"]["Enums"]["confidence_t"] | null
+          exit_strong_n: number | null
+          exit_vs_regional_spread: number | null
+          in_zone_realisation: number | null
+          level_read: Database["public"]["Enums"]["level_t"] | null
+          matched_n: number | null
+          matched_spread: number | null
+          median_realisation: number | null
+          median_uk_hammer_gbp: number | null
+          n_buy_regional: number | null
+          n_exit_strong: number | null
+          n_uk_auto_oil: number | null
+          price_cagr_5y: number | null
+          price_cagr_full: number | null
+          sell_through_pct: number | null
+          sell_through_trend: string | null
+          spread_trusted: boolean | null
+          thin_exit_flag: boolean | null
+          trend_read: Database["public"]["Enums"]["trend_t"] | null
+          updated_at: string | null
+          vs_anchor_ratio: number | null
+        }
+        Relationships: []
+      }
+      comps_timeseries: {
         Row: {
           artist_id: string | null
-          display_name: string | null
-          exit_vs_regional_spread: number | null
-          level_read: Database["public"]["Enums"]["level_t"] | null
-          median_uk_hammer_gbp: number | null
-          n_exit_strong: number | null
-          open_flags: number | null
-          play_type: Database["public"]["Enums"]["play_type_t"] | null
-          price_cagr_5y: number | null
-          trend_read: Database["public"]["Enums"]["trend_t"] | null
-          vs_anchor_ratio: number | null
+          mean_hammer_gbp: number | null
+          median_hammer_gbp: number | null
+          median_realisation: number | null
+          medium_class: string | null
+          n: number | null
+          period_year: number | null
+          sell_through_pct: number | null
+          venue_type: string | null
         }
         Relationships: []
       }
