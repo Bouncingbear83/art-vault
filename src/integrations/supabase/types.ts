@@ -254,6 +254,13 @@ export type Database = {
             foreignKeyName: "comps_raw_artist_id_fkey"
             columns: ["artist_id"]
             isOneToOne: false
+            referencedRelation: "artist_360"
+            referencedColumns: ["artist_id"]
+          },
+          {
+            foreignKeyName: "comps_raw_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
             referencedRelation: "artists"
             referencedColumns: ["artist_id"]
           },
@@ -358,6 +365,13 @@ export type Database = {
             foreignKeyName: "notes_artist_id_fkey"
             columns: ["artist_id"]
             isOneToOne: false
+            referencedRelation: "artist_360"
+            referencedColumns: ["artist_id"]
+          },
+          {
+            foreignKeyName: "notes_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
             referencedRelation: "artists"
             referencedColumns: ["artist_id"]
           },
@@ -406,6 +420,13 @@ export type Database = {
             foreignKeyName: "triggers_artist_id_fkey"
             columns: ["artist_id"]
             isOneToOne: false
+            referencedRelation: "artist_360"
+            referencedColumns: ["artist_id"]
+          },
+          {
+            foreignKeyName: "triggers_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
             referencedRelation: "artists"
             referencedColumns: ["artist_id"]
           },
@@ -428,6 +449,25 @@ export type Database = {
       }
     }
     Views: {
+      artist_360: {
+        Row: {
+          arr_status: string | null
+          artist_id: string | null
+          data_confidence: Database["public"]["Enums"]["confidence_t"] | null
+          dates: string | null
+          display_name: string | null
+          exit_vs_regional_spread: number | null
+          in_zone_realisation: number | null
+          median_uk_hammer_gbp: number | null
+          n_uk_auto_oil: number | null
+          open_flags: number | null
+          palette_pref: string | null
+          play_type: Database["public"]["Enums"]["play_type_t"] | null
+          sell_through_pct: number | null
+          tier: string | null
+        }
+        Relationships: []
+      }
       comps_rollup: {
         Row: {
           anchor_id: string | null
