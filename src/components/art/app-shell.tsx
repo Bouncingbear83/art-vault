@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 const nav = [
   { to: "/register", label: "Debt register" },
   { to: "/artists", label: "Artist 360" },
+  { to: "/book", label: "The Book" },
   { to: "/notes/new", label: "New note" },
 ] as const;
 
@@ -27,7 +28,7 @@ export function AppShell({
     await queryClient.cancelQueries();
     queryClient.clear();
     await supabase.auth.signOut();
-    navigate({ to: "/", search: { next: "" }, replace: true });
+    navigate({ to: "/", replace: true });
   }
 
   return (
