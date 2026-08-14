@@ -72,6 +72,50 @@ export async function fetchArtist360(): Promise<Artist360[]> {
   return data ?? [];
 }
 
+export type CompsRollupRow = Database["public"]["Tables"]["comps_rollup"]["Row"];
+
+/** One roster row for The Book: the full comps_rollup grain (incl. the gate legs
+ *  and the phase-2 level/trend reads the artist_360 view does not carry) joined
+ *  to the artist's name and play type, plus an open-flag count. */
+export type BookRow = CompsRollupRow & {
+  display_name: string;
+  play_type: Enums["play_type_t"] | null;
+  open_flags: number;
+};
+
+export async function fetchBook(): Promise<BookRow[]> {
+  const [rollupRes, flagsRes] = await Promise.all([
+    supabase.from("comps_rollup").select("*, artists(display_name, play_type)"),
+    supabase
+      .from("notes")
+      .select("artist_id")
+      .eq("note_type", "Flag")
+      .eq("action_status", "Open"),
+  ]);
+  if (rollupRes.error) throw rollupRes.error;
+  if (flagsRes.error) throw flagsRes.error;
+
+  const flagCount = new Map<string, number>();
+  for (const f of flagsRes.data ?? []) {
+    const id = (f as { artist_id: string | null }).artist_id;
+    if (id) flagCount.set(id, (flagCount.get(id) ?? 0) + 1);
+  }
+
+  type Joined = CompsRollupRow & {
+    artists: { display_name: string | null; play_type: Enums["play_type_t"] | null } | null;
+  };
+
+  return (rollupRes.data ?? []).map((row) => {
+    const r = row as Joined;
+    return {
+      ...r,
+      display_name: r.artists?.display_name ?? r.artist_id,
+      play_type: r.artists?.play_type ?? null,
+      open_flags: flagCount.get(r.artist_id) ?? 0,
+    };
+  });
+}
+
 export async function fetchArtistById(id: string): Promise<Artist360 | null> {
   const { data, error } = await supabase
     .from("artist_360")
