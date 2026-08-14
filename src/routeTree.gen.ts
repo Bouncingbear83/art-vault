@@ -19,6 +19,7 @@ import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.
 import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
 import { Route as AuthenticatedArtistsIndexRouteImport } from './routes/_authenticated/artists.index'
 import { Route as AuthenticatedArtistsArtistIdRouteImport } from './routes/_authenticated/artists.$artistId'
+import { Route as AuthenticatedBookIndexRouteImport } from './routes/_authenticated/book.index'
 import { Route as AuthenticatedNotesNewRouteImport } from './routes/_authenticated/notes.new'
 import { Route as ApiPublicCompsRouteImport } from './routes/api/public/comps'
 import { Route as AuthenticatedNotesNoteIdEditRouteImport } from './routes/_authenticated/notes.$noteId.edit'
@@ -77,6 +78,11 @@ const AuthenticatedArtistsArtistIdRoute =
     path: '/artists/$artistId',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedBookIndexRoute = AuthenticatedBookIndexRouteImport.update({
+  id: '/book/',
+  path: '/book/',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedNotesNewRoute = AuthenticatedNotesNewRouteImport.update({
   id: '/notes/new',
   path: '/notes/new',
@@ -106,6 +112,7 @@ export interface FileRoutesByFullPath {
   '/notes/new': typeof AuthenticatedNotesNewRoute
   '/api/public/comps': typeof ApiPublicCompsRoute
   '/artists/': typeof AuthenticatedArtistsIndexRoute
+  '/book/': typeof AuthenticatedBookIndexRoute
   '/notes/$noteId/edit': typeof AuthenticatedNotesNoteIdEditRoute
 }
 export interface FileRoutesByTo {
@@ -120,6 +127,7 @@ export interface FileRoutesByTo {
   '/notes/new': typeof AuthenticatedNotesNewRoute
   '/api/public/comps': typeof ApiPublicCompsRoute
   '/artists': typeof AuthenticatedArtistsIndexRoute
+  '/book': typeof AuthenticatedBookIndexRoute
   '/notes/$noteId/edit': typeof AuthenticatedNotesNoteIdEditRoute
 }
 export interface FileRoutesById {
@@ -136,6 +144,7 @@ export interface FileRoutesById {
   '/_authenticated/notes/new': typeof AuthenticatedNotesNewRoute
   '/api/public/comps': typeof ApiPublicCompsRoute
   '/_authenticated/artists/': typeof AuthenticatedArtistsIndexRoute
+  '/_authenticated/book/': typeof AuthenticatedBookIndexRoute
   '/_authenticated/notes/$noteId/edit': typeof AuthenticatedNotesNoteIdEditRoute
 }
 export interface FileRouteTypes {
@@ -152,6 +161,7 @@ export interface FileRouteTypes {
     | '/notes/new'
     | '/api/public/comps'
     | '/artists/'
+    | '/book/'
     | '/notes/$noteId/edit'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -166,6 +176,7 @@ export interface FileRouteTypes {
     | '/notes/new'
     | '/api/public/comps'
     | '/artists'
+    | '/book'
     | '/notes/$noteId/edit'
   id:
     | '__root__'
@@ -181,6 +192,7 @@ export interface FileRouteTypes {
     | '/_authenticated/notes/new'
     | '/api/public/comps'
     | '/_authenticated/artists/'
+    | '/_authenticated/book/'
     | '/_authenticated/notes/$noteId/edit'
   fileRoutesById: FileRoutesById
 }
@@ -267,6 +279,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedArtistsArtistIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/book/': {
+      id: '/_authenticated/book/'
+      path: '/book'
+      fullPath: '/book/'
+      preLoaderRoute: typeof AuthenticatedBookIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/notes/new': {
       id: '/_authenticated/notes/new'
       path: '/notes/new'
@@ -296,6 +315,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedArtistsArtistIdRoute: typeof AuthenticatedArtistsArtistIdRoute
   AuthenticatedNotesNewRoute: typeof AuthenticatedNotesNewRoute
   AuthenticatedArtistsIndexRoute: typeof AuthenticatedArtistsIndexRoute
+  AuthenticatedBookIndexRoute: typeof AuthenticatedBookIndexRoute
   AuthenticatedNotesNoteIdEditRoute: typeof AuthenticatedNotesNoteIdEditRoute
 }
 
@@ -304,6 +324,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedArtistsArtistIdRoute: AuthenticatedArtistsArtistIdRoute,
   AuthenticatedNotesNewRoute: AuthenticatedNotesNewRoute,
   AuthenticatedArtistsIndexRoute: AuthenticatedArtistsIndexRoute,
+  AuthenticatedBookIndexRoute: AuthenticatedBookIndexRoute,
   AuthenticatedNotesNoteIdEditRoute: AuthenticatedNotesNoteIdEditRoute,
 }
 
