@@ -23,43 +23,31 @@ export const Route = createFileRoute("/_authenticated/book/")({
 
 /* ---------- formatting ---------- */
 
-const x = (n: number | null | undefined) => (n == null ? "—" : `${n.toFixed(2)}x`);
-const pctInt = (n: number | null | undefined) =>
-  n == null ? "—" : `${Math.round(n)}%`;
+const x = (n: number | null | undefined) => (n == null ? "—" : `${Number(n).toFixed(2)}x`);
+const pctInt = (n: number | null | undefined) => (n == null ? "—" : `${Math.round(Number(n))}%`);
 
-/* ---------- gate + structural reads ---------- */
+/* ---------- gate ---------- */
 
-// spread_trusted is only meaningful when BOTH legs are evaluable:
-// n_exit_strong >= 8 AND buy_regional_realisation < 1. If the buy-side leg is
-// null (the current defect), the spread rests on the n-leg alone: say so.
+// The spread only earns trust once there are enough UK auto oil comps behind it.
+const MIN_N = 8;
+
+function spreadTrusted(r: BookRow): boolean {
+  return r.n_uk_auto_oil != null && Number(r.n_uk_auto_oil) >= MIN_N;
+}
+
 function spreadState(r: BookRow): { label: string; tone: Tone } {
   if (r.exit_vs_regional_spread == null) return { label: "no data", tone: "off" };
-  if (r.buy_regional_realisation == null) return { label: "unverified", tone: "warn" };
-  if (r.spread_trusted === true) return { label: "trusted", tone: "ok" };
-  return { label: "not trusted", tone: "off" };
+  return spreadTrusted(r)
+    ? { label: "trusted", tone: "ok" }
+    : { label: "thin", tone: "warn" };
 }
 
-// level x trend -> one structural badge. Empty until the timeseries feed lands.
-function structural(r: BookRow): { label: string; tone: Tone } {
-  const lvl = r.level_read;
-  const trd = r.trend_read;
-  if (!lvl || !trd || lvl === "Unknown" || trd === "Unknown")
-    return { label: "—", tone: "none" };
-  const key = `${lvl}+${trd}`;
-  if (lvl === "Cheap" && trd === "Up") return { label: key, tone: "buy" };
-  if (trd === "Down") return { label: key, tone: "avoid" };
-  return { label: key, tone: "hold" };
-}
-
-type Tone = "ok" | "warn" | "off" | "buy" | "hold" | "avoid" | "none";
+type Tone = "ok" | "warn" | "off" | "none";
 
 const TONE: Record<Tone, string> = {
   ok: "border-harbour text-harbour",
   warn: "border-primary text-primary",
   off: "border-border text-muted-foreground",
-  buy: "border-harbour text-harbour",
-  hold: "border-primary text-primary",
-  avoid: "border-destructive text-destructive",
   none: "border-border text-muted-foreground",
 };
 
@@ -98,7 +86,7 @@ function BookScreen() {
         case "spread":
           return (b.exit_vs_regional_spread ?? -1) - (a.exit_vs_regional_spread ?? -1);
         case "flags":
-          return b.open_flags - a.open_flags;
+          return (b.open_flags ?? 0) - (a.open_flags ?? 0);
         default:
           return (
             (PLAY_ORDER[a.play_type ?? "NA"] ?? 3) - (PLAY_ORDER[b.play_type ?? "NA"] ?? 3) ||
@@ -123,7 +111,7 @@ function BookScreen() {
     <AppShell
       eyebrow="Analysis"
       title="The Book"
-      lede="Every name on one screen. The spread is shown with its trust state, so the half-wired gate stays visible until the buy-side leg is fed from the Sheet."
+      lede="Every name on one screen. The spread is greyed until there are enough UK auto oil comps behind it, so a thin read never reads as a verdict."
     >
       {isLoading && <p className="label-caps">Loading…</p>}
       {error && <p className="text-sm text-destructive">{(error as Error).message}</p>}
@@ -147,14 +135,15 @@ function BookScreen() {
                   <th className="label-caps py-2">Gate</th>
                   <th className="label-caps py-2">Sell-thru</th>
                   <th className="label-caps py-2">In-zone</th>
-                  <th className="label-caps py-2">Structural</th>
+                  <th className="label-caps py-2">Confidence</th>
                   <Th k="flags" label="Flags" />
                 </tr>
               </thead>
               <tbody>
                 {sorted.map((r) => {
                   const gate = spreadState(r);
-                  const str = structural(r);
+                  const trusted = spreadTrusted(r);
+                  const flags = r.open_flags ?? 0;
                   return (
                     <tr key={r.artist_id} className="border-b border-border/60 hover:bg-secondary/40">
                       <td className="py-3 pl-1">
@@ -165,18 +154,23 @@ function BookScreen() {
                       </td>
                       <td className="py-3">{r.play_type && <Chip>{r.play_type}</Chip>}</td>
                       <td className="num py-3 text-foreground">{gbp(r.median_uk_hammer_gbp)}</td>
-                      <td className="num py-3 text-foreground">{x(r.exit_vs_regional_spread)}</td>
+                      <td
+                        className={`num py-3 ${trusted ? "text-foreground" : "text-muted-foreground/60"}`}
+                        title={trusted ? undefined : `Fewer than ${MIN_N} UK auto oil comps — untrusted`}
+                      >
+                        {x(r.exit_vs_regional_spread)}
+                      </td>
                       <td className="py-3">
                         <Badge label={gate.label} tone={gate.tone} />
                       </td>
                       <td className="num py-3 text-foreground">{pctInt(r.sell_through_pct)}</td>
                       <td className="num py-3 text-foreground">{x(r.in_zone_realisation)}</td>
                       <td className="py-3">
-                        <Badge label={str.label} tone={str.tone} />
+                        {r.data_confidence ? <Chip>{r.data_confidence}</Chip> : <span className="text-muted-foreground">—</span>}
                       </td>
                       <td className="num py-3">
-                        {r.open_flags > 0 ? (
-                          <span className="text-primary">{r.open_flags}</span>
+                        {flags > 0 ? (
+                          <span className="text-primary">{flags}</span>
                         ) : (
                           <span className="text-muted-foreground">0</span>
                         )}
@@ -189,9 +183,8 @@ function BookScreen() {
           </div>
 
           <p className="mt-4 text-xs text-muted-foreground">
-            Gate reads the spread trust: <span className="text-primary">unverified</span> means
-            buy_regional_realisation is not yet populated, so the spread rests on the n-leg alone.
-            Structural fills in once the timeseries feed lands.
+            A greyed spread means fewer than {MIN_N} UK auto oil comps stand behind it. Rows with no
+            spread at all stay listed, marked “no data”.
           </p>
         </>
       )}

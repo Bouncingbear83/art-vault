@@ -28,7 +28,7 @@ export function AppShell({
     await queryClient.cancelQueries();
     queryClient.clear();
     await supabase.auth.signOut();
-    navigate({ to: "/", replace: true });
+    navigate({ to: "/", search: { next: "" }, replace: true });
   }
 
   return (
