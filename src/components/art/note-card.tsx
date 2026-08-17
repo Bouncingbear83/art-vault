@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { Chip, PriorityTag } from "./primitives";
 import { formatDate, isExpired, type NoteWithRelations } from "@/lib/art360";
 import { cn } from "@/lib/utils";
+import { NoteBody } from "./note-body";
 
 export function NoteCard({ note }: { note: NoteWithRelations }) {
   const expired = isExpired(note.valid_to);
@@ -24,9 +25,7 @@ export function NoteCard({ note }: { note: NoteWithRelations }) {
         </span>
       </div>
 
-      <p className="mt-4 whitespace-pre-wrap text-sm leading-relaxed text-foreground">
-        {note.body}
-      </p>
+       <NoteBody body={note.body} className="mt-4" />
 
       <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-border pt-3">
         {note.note_tags?.length > 0 && (
