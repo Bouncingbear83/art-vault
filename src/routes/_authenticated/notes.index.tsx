@@ -9,9 +9,8 @@ import { cn } from "@/lib/utils";
 type Search = { tag?: string };
 
 export const Route = createFileRoute("/_authenticated/notes/")({
-  validateSearch: (search: Record<string, unknown>): Search => ({
-    tag: typeof search.tag === "string" ? search.tag : undefined,
-  }),
+  validateSearch: (search: Record<string, unknown>): Search =>
+    typeof search['tag'] === "string" ? { tag: search['tag'] } : {},
   head: () => ({
     meta: [
       { title: "Notes by tag — Art360" },
@@ -49,7 +48,7 @@ function NotesByTag() {
             <Link
               key={t.tag}
               to="/notes"
-              search={{ tag: active ? undefined : t.tag }}
+              search={active ? {} : { tag: t.tag }}
               title={t.description ?? undefined}
               className={cn(
                 "label-caps inline-flex items-center gap-1.5 rounded-sm border px-2.5 py-1 transition-colors",

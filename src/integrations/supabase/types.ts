@@ -451,19 +451,24 @@ export type Database = {
     Views: {
       artist_360: {
         Row: {
+          arb_read: string | null
           arr_status: string | null
           artist_id: string | null
+          buy_regional_realisation: number | null
           data_confidence: Database["public"]["Enums"]["confidence_t"] | null
           dates: string | null
           display_name: string | null
           exit_vs_regional_spread: number | null
           in_zone_realisation: number | null
           median_uk_hammer_gbp: number | null
+          n_buy_regional: number | null
+          n_exit_strong: number | null
           n_uk_auto_oil: number | null
           open_flags: number | null
           palette_pref: string | null
           play_type: Database["public"]["Enums"]["play_type_t"] | null
           sell_through_pct: number | null
+          spread_trusted: boolean | null
           tier: string | null
         }
         Relationships: []
@@ -525,6 +530,16 @@ export type Database = {
     }
     Functions: {
       is_owner: { Args: never; Returns: boolean }
+      update_note: {
+        Args: {
+          p_action_status?: Database["public"]["Enums"]["action_status_t"]
+          p_clear_valid_to?: boolean
+          p_note_id: string
+          p_tags?: string[]
+          p_valid_to?: string
+        }
+        Returns: Json
+      }
     }
     Enums: {
       action_status: "Open" | "Actioned" | "Dismissed"

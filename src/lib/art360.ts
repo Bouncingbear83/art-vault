@@ -215,7 +215,7 @@ export async function fetchNotesByTag(tag: string): Promise<NoteWithRelations[]>
 
 /** The controlled tag vocab with a live usage count, for the browse cloud.
  *  Includes zero-count tags so newly-added vocab is visible (dimmed) before first use. */
-export async function fetchTagCounts(): Promise
+export async function fetchTagCounts(): Promise<
   { tag: string; description: string | null; count: number }[]
 > {
   const [vocabRes, usedRes] = await Promise.all([
