@@ -5,8 +5,14 @@ import { cn } from "@/lib/utils";
 // Verdict bodies follow the "HEADER: prose" grammar (GRAIN -> FINDING -> READ
 // -> GUARDS -> FLAGS); this parses that and lifts the rollup KPIs out of the
 // opening BASIS SYNC line into a stat strip. Notes that don't follow the
-// grammar (most Triggers/Flags/Learnings) fall back to the plain block, so it
-// is safe to use for every note_type.
+// grammar fall back to the plain block, so it is safe for every note_type.
+//
+// Colour language (learnable, consistent):
+//   TEAL   = good / sourceable  (arb_read BUY, Data_Confidence High,
+//            realisation < 1.0 = below-estimate room, spread_trusted TRUE)
+//   RED    = caution, read the note (arb_read WATCH, Data_Confidence Low)
+//   OCHRE  = untrusted spread    (spread_trusted FALSE)
+//   quiet  = everything else, including realisation >= 1.0 (no room)
 
 type Cls = "GRAIN" | "FINDING" | "READ" | "GUARDS" | "FLAGS";
 
@@ -39,14 +45,12 @@ function extractKpis(g: string): [string, string][] {
     const m = g.match(re);
     return m ? m[1].trim() : null;
   };
-  // Exit / Regional split: capture both counts so the field name never leaks.
   const split = g.match(/Exit_Strong\s*(\d+)\s*\/\s*Buy_Regional\s*(\d+)/i);
   const rows: [string, string | null][] = [
     ["n UK auto oil", grab(/n(?:_uk_auto_oil|=)\s*(\d+)/i)],
     ["Exit / Regional", split ? `${split[1]} / ${split[2]}` : null],
-    // end on a digit so a trailing comma before the next clause isn't captured
     ["Median UK hammer", grab(/median UK (?:oil )?hammer\s*(£[\d,]*\d)/i)],
-    ["In-zone realisation", grab(/in-zone realisation\s*([\d.]+)/i)],
+    ["In-zone realisation", grab(/in-zone realisation\s*(null|~?[\d.]+)/i)],
     ["Buy-regional realisation", grab(/buy_regional_realisation\s*(null|~?[\d.]+)/i)],
     ["Sell-through", grab(/sell-through\s*(\d+%)/i)],
     ["Exit vs regional", grab(/(?:exit_vs_regional_spread|Exit-vs-Regional)\s*([\d.]+x)/i)],
@@ -57,17 +61,20 @@ function extractKpis(g: string): [string, string][] {
   return rows.filter((r): r is [string, string] => r[1] !== null);
 }
 
-// Semantic, not literal. Alarm-red is reserved for the two fields that mean
-// "caution, read the note": arb_read=WATCH and Data_Confidence=Low. spread_trusted
-// is a ✓/✗ state (a FALSE is often the correct, reassuring reading of a mirage),
-// so it is coloured but never alarm-red.
-type Kind = "good" | "alarm" | "neutral" | "true" | "false" | "plain";
+type Kind = "good" | "alarm" | "neutral" | "true" | "false" | "room" | "noroom" | "nullish" | "plain";
+
+const REALISATION = new Set(["In-zone realisation", "Buy-regional realisation"]);
 
 function kpiKind(label: string, value: string): Kind {
   const v = value.toLowerCase();
   if (label === "Arb read") return v === "buy" ? "good" : v === "watch" ? "alarm" : "neutral";
   if (label === "Data confidence") return v === "high" ? "good" : v === "low" ? "alarm" : "neutral";
   if (label === "Spread trusted") return v.startsWith("t") ? "true" : "false";
+  if (REALISATION.has(label)) {
+    if (v === "null") return "nullish";
+    const n = parseFloat(v.replace("~", ""));
+    return Number.isFinite(n) ? (n < 1.0 ? "room" : "noroom") : "plain";
+  }
   return "plain";
 }
 
@@ -80,11 +87,11 @@ function KpiValue({ label, value }: { label: string; value: string }) {
         ? "bg-harbour text-harbour-foreground"
         : kind === "alarm"
           ? "bg-destructive text-destructive-foreground"
-          : "border border-border text-muted-foreground";
+          : "border border-border text-foreground";
     return (
       <span
         className={cn(
-          "num mt-0.5 inline-flex items-center rounded-sm px-1.5 py-0.5 text-xs font-semibold tracking-wide",
+          "num mt-0.5 inline-flex w-fit items-center rounded-sm px-1.5 py-0.5 text-xs font-semibold tracking-wide",
           chip,
         )}
       >
@@ -93,12 +100,11 @@ function KpiValue({ label, value }: { label: string; value: string }) {
     );
   }
 
-  if (kind === "true") {
-    return <p className="num mt-0.5 text-sm font-semibold text-harbour">{"\u2713"} {value}</p>;
-  }
-  if (kind === "false") {
-    return <p className="num mt-0.5 text-sm font-semibold text-primary">{"\u2717"} {value}</p>;
-  }
+  if (kind === "true") return <p className="num mt-0.5 text-sm font-semibold text-harbour">{"\u2713"} {value}</p>;
+  if (kind === "false") return <p className="num mt-0.5 text-sm font-semibold text-primary">{"\u2717"} {value}</p>;
+  if (kind === "room") return <p className="num mt-0.5 text-sm font-semibold text-harbour">{value}</p>;
+  if (kind === "nullish") return <p className="num mt-0.5 text-sm text-muted-foreground">{value}</p>;
+  // noroom + plain: quiet foreground; the absence of teal is itself the "no room" signal
   return <p className="num mt-0.5 text-sm text-foreground">{value}</p>;
 }
 
@@ -125,9 +131,7 @@ export function NoteBody({ body, className }: { body: string; className?: string
   const sectionable = !!grain || headed >= 2;
 
   if (!sectionable) {
-    return (
-      <p className={cn("whitespace-pre-wrap text-sm leading-relaxed text-foreground", className)}>{body}</p>
-    );
+    return <p className={cn("whitespace-pre-wrap text-sm leading-relaxed text-foreground", className)}>{body}</p>;
   }
 
   const preamble = grain ? grain.text.split(/grain:/i)[0].trim().replace(/[;.]$/, "") : "";
