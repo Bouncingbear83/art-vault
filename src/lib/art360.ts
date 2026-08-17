@@ -191,3 +191,46 @@ export function formatDate(value: string | null): string {
     year: "numeric",
   });
 }
+
+/** Every note carrying a given tag, across all names, newest first.
+ *  Two-step so each returned card still shows ALL its tags, not just the filtered one. */
+export async function fetchNotesByTag(tag: string): Promise<NoteWithRelations[]> {
+  const { data: ids, error: idErr } = await supabase
+    .from("note_tags")
+    .select("note_id")
+    .eq("tag", tag);
+  if (idErr) throw idErr;
+
+  const noteIds = (ids ?? []).map((r) => r.note_id);
+  if (!noteIds.length) return [];
+
+  const { data, error } = await supabase
+    .from("notes")
+    .select(NOTE_SELECT)
+    .in("note_id", noteIds)
+    .order("valid_from", { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as unknown as NoteWithRelations[];
+}
+
+/** The controlled tag vocab with a live usage count, for the browse cloud.
+ *  Includes zero-count tags so newly-added vocab is visible (dimmed) before first use. */
+export async function fetchTagCounts(): Promise
+  { tag: string; description: string | null; count: number }[]
+> {
+  const [vocabRes, usedRes] = await Promise.all([
+    supabase.from("vocab_note_tag").select("*").order("tag"),
+    supabase.from("note_tags").select("tag"),
+  ]);
+  if (vocabRes.error) throw vocabRes.error;
+  if (usedRes.error) throw usedRes.error;
+
+  const counts = new Map<string, number>();
+  for (const r of usedRes.data ?? []) counts.set(r.tag, (counts.get(r.tag) ?? 0) + 1);
+
+  return (vocabRes.data ?? []).map((v) => ({
+    tag: v.tag,
+    description: v.description,
+    count: counts.get(v.tag) ?? 0,
+  }));
+}
