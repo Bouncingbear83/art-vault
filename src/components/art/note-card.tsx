@@ -30,8 +30,19 @@ export function NoteCard({ note }: { note: NoteWithRelations }) {
 
       <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-border pt-3">
         {note.note_tags?.length > 0 && (
-          <span className="label-caps">{note.note_tags.map((t) => t.tag).join(" · ")}</span>
-        )}
+  <span className="flex flex-wrap gap-1.5">
+    {note.note_tags.map((t) => (
+      <Link
+        key={t.tag}
+        to="/notes"
+        search={{ tag: t.tag }}
+        className="label-caps rounded-sm border border-border px-1.5 py-0.5 text-muted-foreground transition-colors hover:border-primary hover:text-primary"
+      >
+        {t.tag}
+      </Link>
+    ))}
+  </span>
+)}
         {note.source_ref && (
           <span className="num text-xs text-muted-foreground">{note.source_ref}</span>
         )}
