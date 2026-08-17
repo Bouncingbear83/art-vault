@@ -39,10 +39,13 @@ function extractKpis(g: string): [string, string][] {
     const m = g.match(re);
     return m ? m[1].trim() : null;
   };
+  // Exit / Regional split: capture both counts so the field name never leaks.
+  const split = g.match(/Exit_Strong\s*(\d+)\s*\/\s*Buy_Regional\s*(\d+)/i);
   const rows: [string, string | null][] = [
     ["n UK auto oil", grab(/n(?:_uk_auto_oil|=)\s*(\d+)/i)],
-    ["Exit / Regional", grab(/Exit_Strong\s*(\d+\s*\/\s*Buy_Regional\s*\d+)/i)],
-    ["Median UK hammer", grab(/median UK (?:oil )?hammer\s*(£[\d,]+)/i)],
+    ["Exit / Regional", split ? `${split[1]} / ${split[2]}` : null],
+    // end on a digit so a trailing comma before the next clause isn't captured
+    ["Median UK hammer", grab(/median UK (?:oil )?hammer\s*(£[\d,]*\d)/i)],
     ["In-zone realisation", grab(/in-zone realisation\s*([\d.]+)/i)],
     ["Buy-regional realisation", grab(/buy_regional_realisation\s*(null|~?[\d.]+)/i)],
     ["Sell-through", grab(/sell-through\s*(\d+%)/i)],
@@ -54,12 +57,49 @@ function extractKpis(g: string): [string, string][] {
   return rows.filter((r): r is [string, string] => r[1] !== null);
 }
 
-function kpiTone(label: string, value: string): string {
+// Semantic, not literal. Alarm-red is reserved for the two fields that mean
+// "caution, read the note": arb_read=WATCH and Data_Confidence=Low. spread_trusted
+// is a ✓/✗ state (a FALSE is often the correct, reassuring reading of a mirage),
+// so it is coloured but never alarm-red.
+type Kind = "good" | "alarm" | "neutral" | "true" | "false" | "plain";
+
+function kpiKind(label: string, value: string): Kind {
   const v = value.toLowerCase();
-  if (label === "Spread trusted") return v.startsWith("t") ? "text-harbour" : "text-destructive";
-  if (label === "Arb read") return v === "buy" ? "text-harbour" : v === "watch" ? "text-destructive" : "text-primary";
-  if (label === "Data confidence") return v === "high" ? "text-harbour" : v === "low" ? "text-destructive" : "text-primary";
-  return "text-foreground";
+  if (label === "Arb read") return v === "buy" ? "good" : v === "watch" ? "alarm" : "neutral";
+  if (label === "Data confidence") return v === "high" ? "good" : v === "low" ? "alarm" : "neutral";
+  if (label === "Spread trusted") return v.startsWith("t") ? "true" : "false";
+  return "plain";
+}
+
+function KpiValue({ label, value }: { label: string; value: string }) {
+  const kind = kpiKind(label, value);
+
+  if (kind === "good" || kind === "alarm" || kind === "neutral") {
+    const chip =
+      kind === "good"
+        ? "bg-harbour text-harbour-foreground"
+        : kind === "alarm"
+          ? "bg-destructive text-destructive-foreground"
+          : "border border-border text-muted-foreground";
+    return (
+      <span
+        className={cn(
+          "num mt-0.5 inline-flex items-center rounded-sm px-1.5 py-0.5 text-xs font-semibold tracking-wide",
+          chip,
+        )}
+      >
+        {value}
+      </span>
+    );
+  }
+
+  if (kind === "true") {
+    return <p className="num mt-0.5 text-sm font-semibold text-harbour">{"\u2713"} {value}</p>;
+  }
+  if (kind === "false") {
+    return <p className="num mt-0.5 text-sm font-semibold text-primary">{"\u2717"} {value}</p>;
+  }
+  return <p className="num mt-0.5 text-sm text-foreground">{value}</p>;
 }
 
 function parseBody(body: string): Section[] {
@@ -98,9 +138,9 @@ export function NoteBody({ body, className }: { body: string; className?: string
         <div className="mb-3">
           <div className="grid grid-cols-2 gap-px overflow-hidden rounded-sm border border-border bg-border sm:grid-cols-3 lg:grid-cols-5">
             {grain.kpis.map(([label, value]) => (
-              <div key={label} className="bg-card px-3 py-2">
+              <div key={label} className="flex flex-col bg-card px-3 py-2">
                 <p className="label-caps truncate">{label}</p>
-                <p className={cn("num mt-0.5 text-sm", kpiTone(label, value))}>{value}</p>
+                <KpiValue label={label} value={value} />
               </div>
             ))}
           </div>
