@@ -9,9 +9,8 @@ import { cn } from "@/lib/utils";
 type Search = { tag?: string };
 
 export const Route = createFileRoute("/_authenticated/notes/")({
-  validateSearch: (search: Record<string, unknown>): Search => ({
-    tag: typeof search.tag === "string" ? search.tag : undefined,
-  }),
+  validateSearch: (search: Record<string, unknown>): Search =>
+    typeof search['tag'] === "string" ? { tag: search['tag'] } : {},
   head: () => ({
     meta: [
       { title: "Notes by tag — Art360" },
