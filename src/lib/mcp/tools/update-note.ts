@@ -1,88 +1,59 @@
-// =====================================================================
-// ART360 :: update_note MCP tool  (edge-function side)
-// Exposes the public.update_note RPC (see art360_update_note.sql) as an
-// Art360: MCP tool so future metadata fixes go through the MCP, not the
-// SQL editor. Framework-agnostic: drop the descriptor into your tools
-// array and the handler into your dispatch switch. Two wiring points are
-// marked  <<< WIRE >>>  below — match them to your existing server file.
-//
-// Assumes the same service_role Supabase client the other tools already use.
-// =====================================================================
- 
-// ---------- 1) Tool descriptor  <<< WIRE: add to the tools[] array >>> --
-export const updateNoteTool = {
+import { defineTool, ToolError } from "@lovable.dev/mcp-js";
+import { z } from "zod";
+import { supabaseForUser } from "../supabase";
+import { ACTION, errorResult, textResult } from "../shared";
+
+// Wraps the public.update_note RPC (atomic tag swap + metadata patch).
+// Deliberately NOT re-implemented in JS: doing the notes update and the
+// note_tags delete/insert here would reintroduce the non-atomic tag bug
+// that create-note still carries. The RPC does it in one transaction.
+export default defineTool({
   name: "update_note",
+  title: "Update note",
   description:
-    "Update a note's tags, valid_to (review horizon) and/or action_status in place, " +
-    "atomically. Use to re-tag, set/clear an expiry, or flip status without a supersede. " +
-    "Keyed by note_id. Fields left undefined are untouched; pass tags=[] to clear all tags, " +
-    "or clear_valid_to=true to make a note evergreen.",
+    "Update a note's tags, valid_to (review horizon) and/or action_status in place, atomically. " +
+    "Keyed by note_id or slug. Omitted fields are left untouched; pass tags=[] to clear all tags, " +
+    "or clear_valid_to=true to make the note evergreen. Unknown tags are rejected. " +
+    "Use this to re-tag or set an expiry without a supersede.",
   inputSchema: {
-    type: "object",
-    properties: {
-      note_id: { type: "string", description: "UUID of the note to update." },
-      tags: {
-        type: "array",
-        items: { type: "string" },
-        description:
-          "Replace the note's tags with exactly this set. Omit to leave tags untouched; " +
-          "pass [] to clear. Every tag must exist in vocab_note_tag or the call rejects.",
-      },
-      valid_to: {
-        type: "string",
-        description: "ISO date review horizon (e.g. 2026-11-12). Omit to leave unchanged.",
-      },
-      clear_valid_to: {
-        type: "boolean",
-        description: "Set true to force valid_to null (evergreen). Overrides valid_to.",
-      },
-      action_status: {
-        type: "string",
-        enum: ["Open", "Actioned", "Superseded", "Wontfix", "Archived"],
-        description: "New status. Omit to leave unchanged.",
-      },
-    },
-    required: ["note_id"],
+    note_id: z.string().optional(),
+    slug: z.string().optional(),
+    tags: z
+      .array(z.string())
+      .optional()
+      .describe("Replace the tag set; omit to leave untouched, [] to clear. Must exist in vocab_note_tag."),
+    valid_to: z.string().optional().describe("ISO date review horizon; omit to leave unchanged."),
+    clear_valid_to: z.boolean().optional().describe("Set true to force valid_to null (evergreen); overrides valid_to."),
+    action_status: z.enum(ACTION).optional().describe("New status; omit to leave unchanged."),
   },
-};
- 
-// ---------- 2) Handler  <<< WIRE: add a case to the dispatch switch >>> --
-// e.g.  case "update_note": return await handleUpdateNote(args, supabase);
-export async function handleUpdateNote(
-  args: {
-    note_id: string;
-    tags?: string[];
-    valid_to?: string;
-    clear_valid_to?: boolean;
-    action_status?: string;
+  annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
+  handler: async (a, ctx) => {
+    if (!ctx.isAuthenticated()) return errorResult("Not authenticated");
+    const sb = supabaseForUser(ctx);
+
+    if (!a.note_id && !a.slug) throw new ToolError("provide note_id or slug");
+    if (a.tags === undefined && a.valid_to === undefined && !a.clear_valid_to && !a.action_status) {
+      throw new ToolError("nothing to update: provide tags, valid_to, clear_valid_to, and/or action_status");
+    }
+
+    // The RPC is keyed by note_id; resolve slug first for parity with update_flag.
+    let noteId = a.note_id;
+    if (!noteId && a.slug) {
+      const { data: n, error } = await sb.from("notes").select("note_id").eq("slug", a.slug).maybeSingle();
+      if (error) throw new ToolError(`lookup failed: ${error.message}`);
+      if (!n) throw new ToolError(`no note matched slug "${a.slug}"`);
+      noteId = n.note_id;
+    }
+
+    const { data, error } = await sb.rpc("update_note", {
+      p_note_id: noteId,
+      p_tags: a.tags ?? null,
+      p_valid_to: a.valid_to ?? null,
+      p_clear_valid_to: a.clear_valid_to ?? false,
+      p_action_status: a.action_status ?? null,
+    });
+    if (error) throw new ToolError(`update_note failed: ${error.message}`);
+
+    return textResult(data);
   },
-  supabase: any, // the service_role SupabaseClient the other tools use
-) {
-  if (!args?.note_id) {
-    return toolError("update_note requires note_id.");
-  }
- 
-  const { data, error } = await supabase.rpc("update_note", {
-    p_note_id: args.note_id,
-    // undefined -> the SQL default (null / false) -> "leave untouched"
-    p_tags: args.tags ?? null,
-    p_valid_to: args.valid_to ?? null,
-    p_clear_valid_to: args.clear_valid_to ?? false,
-    p_action_status: args.action_status ?? null,
-  });
- 
-  if (error) {
-    // Surface the DB's own message (unknown tag, note not found, etc.).
-    return toolError(`update_note failed: ${error.message}`);
-  }
- 
-  // data is the note row + tags[] (jsonb from the RPC), mirroring search_notes.
-  return {
-    content: [{ type: "text", text: JSON.stringify(data, null, 2) }],
-  };
-}
- 
-// ---------- tiny helper (drop if your server already has one) ----------
-function toolError(msg: string) {
-  return { content: [{ type: "text", text: msg }], isError: true };
-}
+});
