@@ -48,7 +48,7 @@ function NotesByTag() {
             <Link
               key={t.tag}
               to="/notes"
-              search={{ tag: active ? undefined : t.tag }}
+              search={active ? {} : { tag: t.tag }}
               title={t.description ?? undefined}
               className={cn(
                 "label-caps inline-flex items-center gap-1.5 rounded-sm border px-2.5 py-1 transition-colors",
