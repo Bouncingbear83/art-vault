@@ -43,7 +43,7 @@ function classify(header: string): Cls {
 function extractKpis(g: string): [string, string][] {
   const grab = (re: RegExp) => {
     const m = g.match(re);
-    return m ? m[1].trim() : null;
+    return m?.[1] ? m[1].trim() : null;
   };
   const split = g.match(/Exit_Strong\s*(\d+)\s*\/\s*Buy_Regional\s*(\d+)/i);
   const rows: [string, string | null][] = [
