@@ -14,11 +14,76 @@ export type Database = {
   }
   public: {
     Tables: {
+      artist_desk_config: {
+        Row: {
+          arr_active_until: string | null
+          artist_id: string
+          commission_floor_gbp: number | null
+          discount_class: string
+          discount_override_firm: number | null
+          discount_override_stretch: number | null
+          floor_reviewed: string | null
+          min_longest_cm: number | null
+          note: string | null
+          paper_ceiling_gbp: number | null
+          paper_primary: boolean
+          strong_venue_default: boolean
+          updated_at: string
+        }
+        Insert: {
+          arr_active_until?: string | null
+          artist_id: string
+          commission_floor_gbp?: number | null
+          discount_class?: string
+          discount_override_firm?: number | null
+          discount_override_stretch?: number | null
+          floor_reviewed?: string | null
+          min_longest_cm?: number | null
+          note?: string | null
+          paper_ceiling_gbp?: number | null
+          paper_primary?: boolean
+          strong_venue_default?: boolean
+          updated_at?: string
+        }
+        Update: {
+          arr_active_until?: string | null
+          artist_id?: string
+          commission_floor_gbp?: number | null
+          discount_class?: string
+          discount_override_firm?: number | null
+          discount_override_stretch?: number | null
+          floor_reviewed?: string | null
+          min_longest_cm?: number | null
+          note?: string | null
+          paper_ceiling_gbp?: number | null
+          paper_primary?: boolean
+          strong_venue_default?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "artist_desk_config_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: true
+            referencedRelation: "artist_360"
+            referencedColumns: ["artist_id"]
+          },
+          {
+            foreignKeyName: "artist_desk_config_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: true
+            referencedRelation: "artists"
+            referencedColumns: ["artist_id"]
+          },
+        ]
+      }
       artists: {
         Row: {
           arr_status: string | null
           artist_id: string
+          birth_year: number | null
           dates: string | null
+          death_year: number | null
           display_name: string
           palette_pref: string | null
           paper_sleeve: boolean | null
@@ -29,7 +94,9 @@ export type Database = {
         Insert: {
           arr_status?: string | null
           artist_id: string
+          birth_year?: number | null
           dates?: string | null
+          death_year?: number | null
           display_name: string
           palette_pref?: string | null
           paper_sleeve?: boolean | null
@@ -40,13 +107,36 @@ export type Database = {
         Update: {
           arr_status?: string | null
           artist_id?: string
+          birth_year?: number | null
           dates?: string | null
+          death_year?: number | null
           display_name?: string
           palette_pref?: string | null
           paper_sleeve?: boolean | null
           play_type?: Database["public"]["Enums"]["play_type_t"] | null
           tier?: string | null
           updated_at?: string | null
+        }
+        Relationships: []
+      }
+      budget: {
+        Row: {
+          committed_gbp: number
+          envelope_gbp: number
+          period_year: number
+          updated_at: string
+        }
+        Insert: {
+          committed_gbp?: number
+          envelope_gbp?: number
+          period_year: number
+          updated_at?: string
+        }
+        Update: {
+          committed_gbp?: number
+          envelope_gbp?: number
+          period_year?: number
+          updated_at?: string
         }
         Relationships: []
       }
@@ -266,6 +356,57 @@ export type Database = {
           },
         ]
       }
+      desk_params: {
+        Row: {
+          arr_rate: number
+          bp_pct_default: number
+          collector_discount_firm: number
+          collector_discount_stretch: number
+          created_at: string
+          effective_from: string
+          homogeneity_threshold: number
+          n_gate: number
+          note: string | null
+          params_id: string
+          recency_cutoff: number
+          remote_haircut: number
+          stale_haircut: number
+          vat_premium: number
+        }
+        Insert: {
+          arr_rate?: number
+          bp_pct_default?: number
+          collector_discount_firm: number
+          collector_discount_stretch: number
+          created_at?: string
+          effective_from?: string
+          homogeneity_threshold?: number
+          n_gate?: number
+          note?: string | null
+          params_id?: string
+          recency_cutoff?: number
+          remote_haircut?: number
+          stale_haircut?: number
+          vat_premium?: number
+        }
+        Update: {
+          arr_rate?: number
+          bp_pct_default?: number
+          collector_discount_firm?: number
+          collector_discount_stretch?: number
+          created_at?: string
+          effective_from?: string
+          homogeneity_threshold?: number
+          n_gate?: number
+          note?: string | null
+          params_id?: string
+          recency_cutoff?: number
+          remote_haircut?: number
+          stale_haircut?: number
+          vat_premium?: number
+        }
+        Relationships: []
+      }
       note_tags: {
         Row: {
           note_id: string
@@ -381,6 +522,99 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "notes"
             referencedColumns: ["note_id"]
+          },
+        ]
+      }
+      positions: {
+        Row: {
+          all_in_gbp: number | null
+          artist_id: string | null
+          buy_date: string | null
+          condition_status: string | null
+          created_at: string
+          hammer_gbp: number | null
+          house: string | null
+          longest_cm: number | null
+          lot_note_id: string | null
+          palette: string | null
+          params_id: string | null
+          position_id: string
+          rationale: string | null
+          sale_key: string | null
+          subject: string | null
+          title: string | null
+        }
+        Insert: {
+          all_in_gbp?: number | null
+          artist_id?: string | null
+          buy_date?: string | null
+          condition_status?: string | null
+          created_at?: string
+          hammer_gbp?: number | null
+          house?: string | null
+          longest_cm?: number | null
+          lot_note_id?: string | null
+          palette?: string | null
+          params_id?: string | null
+          position_id?: string
+          rationale?: string | null
+          sale_key?: string | null
+          subject?: string | null
+          title?: string | null
+        }
+        Update: {
+          all_in_gbp?: number | null
+          artist_id?: string | null
+          buy_date?: string | null
+          condition_status?: string | null
+          created_at?: string
+          hammer_gbp?: number | null
+          house?: string | null
+          longest_cm?: number | null
+          lot_note_id?: string | null
+          palette?: string | null
+          params_id?: string | null
+          position_id?: string
+          rationale?: string | null
+          sale_key?: string | null
+          subject?: string | null
+          title?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "positions_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "artist_360"
+            referencedColumns: ["artist_id"]
+          },
+          {
+            foreignKeyName: "positions_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "artists"
+            referencedColumns: ["artist_id"]
+          },
+          {
+            foreignKeyName: "positions_lot_note_id_fkey"
+            columns: ["lot_note_id"]
+            isOneToOne: false
+            referencedRelation: "notes"
+            referencedColumns: ["note_id"]
+          },
+          {
+            foreignKeyName: "positions_params_id_fkey"
+            columns: ["params_id"]
+            isOneToOne: false
+            referencedRelation: "desk_params"
+            referencedColumns: ["params_id"]
+          },
+          {
+            foreignKeyName: "positions_params_id_fkey"
+            columns: ["params_id"]
+            isOneToOne: false
+            referencedRelation: "desk_params_current"
+            referencedColumns: ["params_id"]
           },
         ]
       }
@@ -519,6 +753,25 @@ export type Database = {
         }
         Relationships: []
       }
+      desk_params_current: {
+        Row: {
+          arr_rate: number | null
+          bp_pct_default: number | null
+          collector_discount_firm: number | null
+          collector_discount_stretch: number | null
+          created_at: string | null
+          effective_from: string | null
+          homogeneity_threshold: number | null
+          n_gate: number | null
+          note: string | null
+          params_id: string | null
+          recency_cutoff: number | null
+          remote_haircut: number | null
+          stale_haircut: number | null
+          vat_premium: number | null
+        }
+        Relationships: []
+      }
       vocab_enum: {
         Row: {
           enum_name: string | null
@@ -529,6 +782,7 @@ export type Database = {
       }
     }
     Functions: {
+      _recompute_budget_year: { Args: { yr: number }; Returns: undefined }
       is_owner: { Args: never; Returns: boolean }
       update_note: {
         Args: {
