@@ -116,9 +116,9 @@ function parseBody(body: string): Section[] {
   return paras.map((p): Section => {
     if (/^BASIS SYNC/i.test(p)) return { cls: "GRAIN", header: "Basis sync", text: p, kpis: extractKpis(p) };
     const m = p.match(/^([^:\n]{3,70}?):\s+([\s\S]*)$/) || p.match(/^([A-Z][^-\n]{3,70}?)\s+-\s+([\s\S]*)$/);
-    if (m) {
+    if (m?.[1]) {
       const header = m[1].trim();
-      return { cls: classify(header), header, text: m[2].trim() };
+      return { cls: classify(header), header, text: (m[2] ?? "").trim() };
     }
     return { cls: classify(p.slice(0, 40)), header: null, text: p };
   });
