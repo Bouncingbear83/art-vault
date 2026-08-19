@@ -134,7 +134,7 @@ export function NoteBody({ body, className }: { body: string; className?: string
     return <p className={cn("whitespace-pre-wrap text-sm leading-relaxed text-foreground", className)}>{body}</p>;
   }
 
-  const preamble = grain ? grain.text.split(/grain:/i)[0].trim().replace(/[;.]$/, "") : "";
+  const preamble = grain ? (grain.text.split(/grain:/i)[0] ?? "").trim().replace(/[;.]$/, "") : "";
 
   return (
     <div className={className}>
