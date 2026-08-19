@@ -467,11 +467,12 @@ export function scoreLot(b: ScoreBundle): Decision {
       binding_constraint: envelope <= 0 ? "no-envelope" : "budget",
       anchor, quality_delta: { value: qd, bound, basis: qdBasis, override: qdOverride },
       K_buy: round(K * 1000) / 1000,
-      ladder: { firm: null, stretch, tightened, commission: config.commission_floor_gbp ?? null },
+      // Full ladder shown: the lot qualifies; the constraint is funding, not price.
+      ladder: { firm, stretch, tightened, commission: config.commission_floor_gbp ?? null },
       all_in_at_firm, budget_ok: false, flags,
       rationale: envelope <= 0
-        ? "No budget envelope set: bidding blocked by design."
-        : `Budget headroom £${round(remaining)} < prospective all-in £${all_in_at_firm}; no bid.`,
+        ? `No budget envelope set: bidding blocked by design (would bid firm £${firm}).`
+        : `Budget headroom £${round(remaining)} < prospective all-in £${all_in_at_firm}; no bid (would bid firm £${firm}).`,
     });
   }
 
