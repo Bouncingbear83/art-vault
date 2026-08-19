@@ -43,51 +43,55 @@ export default defineTool({
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
   handler: async (a, ctx) => {
     if (!ctx.isAuthenticated()) return errorResult("Not authenticated");
-    const sb = supabaseForUser(ctx);
+    try {
+      const sb = supabaseForUser(ctx);
 
-    let artist_id = a.artist_id;
-    if (!artist_id) {
-      if (!a.artist) throw new ToolError("provide artist or artist_id");
-      const hits = await resolveArtist(sb, a.artist);
-      if (hits.length === 0) throw new ToolError(`no roster artist matches "${a.artist}"`);
-      if (hits.length > 1) return textResult({ needs_disambiguation: hits });
-      artist_id = hits[0]!.artist_id;
+      let artist_id = a.artist_id;
+      if (!artist_id) {
+        if (!a.artist) throw new ToolError("provide artist or artist_id");
+        const hits = await resolveArtist(sb, a.artist);
+        if (hits.length === 0) throw new ToolError(`no roster artist matches "${a.artist}"`);
+        if (hits.length > 1) return textResult({ needs_disambiguation: hits });
+        artist_id = hits[0]!.artist_id;
+      }
+
+      const period_year = a.period_year ?? Number(a.sale_date.slice(0, 4));
+      const { comps, config, params, budget } = await loadScoreInputs(sb, artist_id, period_year);
+      if (!config) throw new ToolError(`no artist_desk_config for "${artist_id}" (run the Phase 0 seed)`);
+
+      const lot: LotInput = {
+        artist_id,
+        title: a.title,
+        authorship: a.authorship,
+        medium_raw: a.medium_raw,
+        medium_class: a.medium_class ?? null,
+        longest_cm: a.longest_cm,
+        subject: a.subject,
+        palette: a.palette,
+        palette_keyword_only: a.palette_keyword_only ?? false,
+        est_low: a.est_low ?? null,
+        est_high: a.est_high ?? null,
+        currency: a.currency,
+        venue: a.venue,
+        sale_date: a.sale_date,
+        bp_pct: a.bp_pct ?? null,
+        strong_venue_candidate: a.strong_venue_candidate,
+        quality_delta: a.quality_delta ?? null,
+        quality_delta_basis: a.quality_delta_basis ?? null,
+        quality_override_reason: a.quality_override_reason ?? null,
+        condition: a.condition ?? null,
+        sheet_grade: a.sheet_grade ?? null,
+        condition_checked: a.condition_checked ?? false,
+        provenance_note: a.provenance_note ?? null,
+        sale_context: a.sale_context ?? null,
+        taste_ok: a.taste_ok,
+        ...(a.in_zone ? { in_zone: a.in_zone } : {}),
+      };
+
+      const bundle: ScoreBundle = { lot, comps, config, params, budget };
+      return textResult(scoreLot(bundle));
+    } catch (err) {
+      return errorResult(`score_lot error: ${err instanceof Error ? err.message : String(err)}`);
     }
-
-    const period_year = a.period_year ?? Number(a.sale_date.slice(0, 4));
-    const { comps, config, params, budget } = await loadScoreInputs(sb, artist_id, period_year);
-    if (!config) throw new ToolError(`no artist_desk_config for "${artist_id}" (run the Phase 0 seed)`);
-
-    const lot: LotInput = {
-      artist_id,
-      title: a.title,
-      authorship: a.authorship,
-      medium_raw: a.medium_raw,
-      medium_class: a.medium_class ?? null,
-      longest_cm: a.longest_cm,
-      subject: a.subject,
-      palette: a.palette,
-      palette_keyword_only: a.palette_keyword_only ?? false,
-      est_low: a.est_low ?? null,
-      est_high: a.est_high ?? null,
-      currency: a.currency,
-      venue: a.venue,
-      sale_date: a.sale_date,
-      bp_pct: a.bp_pct ?? null,
-      strong_venue_candidate: a.strong_venue_candidate,
-      quality_delta: a.quality_delta ?? null,
-      quality_delta_basis: a.quality_delta_basis ?? null,
-      quality_override_reason: a.quality_override_reason ?? null,
-      condition: a.condition ?? null,
-      sheet_grade: a.sheet_grade ?? null,
-      condition_checked: a.condition_checked ?? false,
-      provenance_note: a.provenance_note ?? null,
-      sale_context: a.sale_context ?? null,
-      taste_ok: a.taste_ok,
-      ...(a.in_zone ? { in_zone: a.in_zone } : {}),
-    };
-
-    const bundle: ScoreBundle = { lot, comps, config, params, budget };
-    return textResult(scoreLot(bundle));
   },
 });
