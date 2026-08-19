@@ -113,64 +113,128 @@ export interface CommitResult {
   over_walkaway: boolean;
 }
 
+const todayISO = () => new Date().toISOString().slice(0, 10);
+
+/** The I.5-grammar body, built for any decision (not just Buy). */
+function verdictBody(f: LotForm, d: Decision, extra?: string): string {
+  const a = d.anchor;
+  const grain = a.fair_value != null
+    ? `GRAIN: rung ${a.rung}, n=${a.n}, ${a.tier}, fair £${a.fair_value}.`
+    : `GRAIN: ${d.lane} lane, no anchor (${a.flags.join(", ") || "n/a"}).`;
+  const money = (n: number | null) => (n != null ? `£${n}` : "—");
+  const finding = `FINDING: δ ${d.quality_delta.value}; firm ${money(d.ladder.firm)}, stretch ${money(d.ladder.stretch)}; all-in ${money(d.all_in_at_firm)}.`;
+  const read = `READ: ${d.decision}${d.binding_constraint ? ` (${d.binding_constraint})` : ""}. ${f.title} — ${f.venue}, ${f.sale_date}.`;
+  const flags = `FLAGS: ${d.flags.length ? d.flags.join("; ") : "none"}.`;
+  return [grain, finding, read, flags, extra].filter(Boolean).join("\n\n");
+}
+
+/** Upsert a Lot note keyed by sale_key: one note per lot, updated in place. */
+async function upsertLotNote(p: {
+  sale_key: string; artist_id: string; decision: "Buy" | "Skip" | "Monitor";
+  body: string; valid_to: string | null; valid_from: string;
+}): Promise<string> {
+  const payload = {
+    note_type: "Lot", scope: "Lot", artist_id: p.artist_id,
+    entity_key: p.sale_key, source_ref: p.sale_key,
+    decision: p.decision, action_status: "Open", play_type: "NA", confidence: "Med",
+    valid_from: p.valid_from, valid_to: p.valid_to, body: p.body, created_by: "desk-ui",
+  };
+  const { data: existing, error: selErr } = await sb
+    .from("notes").select("note_id").eq("note_type", "Lot").eq("source_ref", p.sale_key).limit(1).maybeSingle();
+  if (selErr) throw selErr;
+  if (existing?.note_id) {
+    const { error } = await sb.from("notes").update(payload).eq("note_id", existing.note_id);
+    if (error) throw error;
+    return existing.note_id as string;
+  }
+  const { data, error } = await sb.from("notes").insert(payload).select("note_id").single();
+  if (error) throw error;
+  return data.note_id as string;
+}
+
+/** Auto-log on every score: writes/overwrites the lot's verdict note. */
+export async function logVerdict(f: LotForm, d: Decision): Promise<void> {
+  await upsertLotNote({
+    sale_key: d.lot.sale_key, artist_id: f.artist_id, decision: d.decision,
+    body: verdictBody(f, d, `SCORED: ${todayISO()}.`),
+    valid_to: d.vault?.valid_to ?? null, valid_from: todayISO(),
+  });
+}
+
 export async function commitLotClient(f: LotForm, act: CommitActuals): Promise<CommitResult> {
   const d = await scoreLotClient(f);
   const K = d.K_buy;
   const all_in = Math.round(act.hammer_paid_gbp * K);
   const sale_key = d.lot.sale_key;
-  const buy_date = act.buy_date || new Date().toISOString().slice(0, 10);
+  const buy_date = act.buy_date || todayISO();
   const firm = d.ladder.firm;
   const over = firm != null && act.hammer_paid_gbp > firm;
+  const actuals =
+    `ACTUALS: hammer £${act.hammer_paid_gbp}, all-in £${all_in}, K_buy ${K}, house ${act.house || f.venue}.` +
+    (over ? ` FLAG: paid above firm £${firm}.` : "");
 
-  const body =
-    (d.vault?.note_body ?? `GRAIN: ${d.lane} lane.`) +
-    `\n\nACTUALS: hammer £${act.hammer_paid_gbp}, all-in £${all_in}, K_buy ${K}, house ${act.house || f.venue}.` +
-    (over ? `\n\nFLAG: paid above firm £${firm}.` : "");
+  // one Lot note per lot: the verdict note becomes the committed record
+  const note_id = await upsertLotNote({
+    sale_key, artist_id: f.artist_id, decision: "Buy",
+    body: verdictBody(f, d, actuals), valid_to: d.vault?.valid_to ?? null, valid_from: buy_date,
+  });
 
-  const { data: note, error: nErr } = await sb
+  // upsert the position by sale_key so a re-commit doesn't duplicate
+  const posPayload = {
+    artist_id: f.artist_id, title: f.title, sale_key, house: act.house || f.venue,
+    hammer_gbp: act.hammer_paid_gbp, all_in_gbp: all_in, buy_date,
+    condition_status: act.condition_status || f.condition || null, subject: f.subject,
+    palette: f.palette, longest_cm: f.longest_cm, rationale: act.rationale || d.rationale,
+    params_id: d.params_id, lot_note_id: note_id,
+  };
+  const { data: existingPos, error: posSelErr } = await sb
+    .from("positions").select("position_id").eq("sale_key", sale_key).limit(1).maybeSingle();
+  if (posSelErr) throw posSelErr;
+  let position_id: string;
+  if (existingPos?.position_id) {
+    const { error } = await sb.from("positions").update(posPayload).eq("position_id", existingPos.position_id);
+    if (error) throw error;
+    position_id = existingPos.position_id as string;
+  } else {
+    const { data, error } = await sb.from("positions").insert(posPayload).select("position_id").single();
+    if (error) throw new Error(`Note ${note_id} written, but position insert failed: ${error.message}`);
+    position_id = data.position_id as string;
+  }
+
+  return { position_id, lot_note_id: note_id, all_in_gbp: all_in, over_walkaway: over };
+}
+
+/* ------------------------------ deal log ---------------------------------- */
+
+export interface DealLogRow {
+  note_id: string;
+  artist_name: string | null;
+  decision: string | null;
+  body: string;
+  valid_from: string | null;
+  source_ref: string | null;
+}
+type RawLog = {
+  note_id: string; decision: string | null; body: string; valid_from: string | null;
+  source_ref: string | null; artists: { display_name: string | null } | null;
+};
+
+export async function fetchDealLog(): Promise<DealLogRow[]> {
+  const { data, error } = await sb
     .from("notes")
-    .insert({
-      note_type: "Lot",
-      scope: "Lot",
-      artist_id: f.artist_id,
-      entity_key: sale_key,
-      decision: "Buy",
-      action_status: "Open",
-      play_type: "NA",
-      confidence: "Med",
-      valid_from: buy_date,
-      valid_to: d.vault?.valid_to ?? null,
-      source_ref: sale_key,
-      body,
-      created_by: "desk-ui",
-    })
-    .select("note_id")
-    .single();
-  if (nErr) throw nErr;
-
-  const { data: pos, error: pErr } = await sb
-    .from("positions")
-    .insert({
-      artist_id: f.artist_id,
-      title: f.title,
-      sale_key,
-      house: act.house || f.venue,
-      hammer_gbp: act.hammer_paid_gbp,
-      all_in_gbp: all_in,
-      buy_date,
-      condition_status: act.condition_status || f.condition || null,
-      subject: f.subject,
-      palette: f.palette,
-      longest_cm: f.longest_cm,
-      rationale: act.rationale || d.rationale,
-      params_id: d.params_id,
-      lot_note_id: note.note_id,
-    })
-    .select("position_id")
-    .single();
-  if (pErr) throw new Error(`Note ${note.note_id} written, but position insert failed: ${pErr.message}`);
-
-  return { position_id: pos.position_id, lot_note_id: note.note_id, all_in_gbp: all_in, over_walkaway: over };
+    .select("note_id, decision, body, valid_from, source_ref, artists(display_name)")
+    .eq("note_type", "Lot")
+    .order("valid_from", { ascending: false })
+    .limit(200);
+  if (error) throw error;
+  return ((data ?? []) as unknown as RawLog[]).map((r) => ({
+    note_id: r.note_id,
+    artist_name: r.artists?.display_name ?? null,
+    decision: r.decision,
+    body: r.body,
+    valid_from: r.valid_from,
+    source_ref: r.source_ref,
+  }));
 }
 
 /* ------------------------------ ledger + config reads --------------------- */
