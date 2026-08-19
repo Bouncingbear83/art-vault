@@ -45,6 +45,7 @@ export default defineTool({
   annotations: { readOnlyHint: false, destructiveHint: false },
   handler: async (a, ctx) => {
     if (!ctx.isAuthenticated()) return errorResult("Not authenticated");
+    try {
     const sb = supabaseForUser(ctx);
 
     let artist_id = a.artist_id;
@@ -160,5 +161,8 @@ export default defineTool({
       binding_constraint: d.binding_constraint,
       flags,
     });
+    } catch (err) {
+      return errorResult(`commit_lot error: ${err instanceof Error ? err.message : String(err)}`);
+    }
   },
 });
