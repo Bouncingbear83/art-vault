@@ -6,7 +6,7 @@ import { AppShell } from "@/components/art/app-shell";
 import { Chip, EmptyState, Stat } from "@/components/art/primitives";
 import { fetchArtistOptions, gbp } from "@/lib/art360";
 import {
-  AUTHORSHIPS, PALETTES, SUBJECTS, commitLotClient, emptyLot, scoreLotClient,
+  AUTHORSHIPS, PALETTES, SUBJECTS, commitLotClient, emptyLot, logVerdict, scoreLotClient,
   type CommitActuals, type LotForm,
 } from "@/lib/desk-ui";
 import type { Decision } from "@/lib/desk/score";
@@ -33,6 +33,7 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
 }
 
 function LotDesk() {
+  const qc = useQueryClient();
   const [f, setF] = useState<LotForm>(emptyLot());
   const [result, setResult] = useState<Decision | null>(null);
   const set = <K extends keyof LotForm>(k: K, v: LotForm[K]) => setF((p) => ({ ...p, [k]: v }));
@@ -41,8 +42,15 @@ function LotDesk() {
   const { data: artists } = useQuery({ queryKey: ["artist-options"], queryFn: fetchArtistOptions });
 
   const score = useMutation({
-    mutationFn: () => scoreLotClient(f),
-    onSuccess: (d) => setResult(d),
+    mutationFn: async () => {
+      const d = await scoreLotClient(f);
+      await logVerdict(f, d); // auto-log, deduped by sale_key
+      return d;
+    },
+    onSuccess: (d) => {
+      setResult(d);
+      qc.invalidateQueries({ queryKey: ["deal-log"] });
+    },
     onError: (e: Error) => { setResult(null); toast.error(e.message); },
   });
 
