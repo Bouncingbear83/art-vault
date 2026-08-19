@@ -65,7 +65,10 @@ test("no envelope halts the bid (Monitor)", () => {
   const d = scoreLot(bundle({ budget: { period_year: 2026, envelope_gbp: 0, committed_gbp: 0 } }));
   expect(d.decision).toBe("Monitor");
   expect(d.binding_constraint).toBe("no-envelope");
-  expect(d.ladder.firm).toBeNull();
+  // full ladder still shown: the lot qualifies, only funding blocks it
+  expect(d.ladder.firm).toBe(1432);
+  expect(d.ladder.stretch).toBe(1718);
+  expect(d.all_in_at_firm).toBe(1913);
 });
 
 test("taste N halts (Skip, no ladder)", () => {
