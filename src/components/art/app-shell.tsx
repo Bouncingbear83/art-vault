@@ -4,6 +4,8 @@ import type { ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
 const nav = [
+  { to: "/desk", label: "Lot Desk" },
+  { to: "/positions", label: "Positions" },
   { to: "/register", label: "Debt register" },
   { to: "/artists", label: "Artist 360" },
   { to: "/book", label: "The Book" },
