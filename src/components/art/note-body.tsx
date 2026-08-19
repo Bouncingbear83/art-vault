@@ -43,7 +43,7 @@ function classify(header: string): Cls {
 function extractKpis(g: string): [string, string][] {
   const grab = (re: RegExp) => {
     const m = g.match(re);
-    return m ? m[1].trim() : null;
+    return m?.[1] ? m[1].trim() : null;
   };
   const split = g.match(/Exit_Strong\s*(\d+)\s*\/\s*Buy_Regional\s*(\d+)/i);
   const rows: [string, string | null][] = [
@@ -116,9 +116,9 @@ function parseBody(body: string): Section[] {
   return paras.map((p): Section => {
     if (/^BASIS SYNC/i.test(p)) return { cls: "GRAIN", header: "Basis sync", text: p, kpis: extractKpis(p) };
     const m = p.match(/^([^:\n]{3,70}?):\s+([\s\S]*)$/) || p.match(/^([A-Z][^-\n]{3,70}?)\s+-\s+([\s\S]*)$/);
-    if (m) {
+    if (m?.[1]) {
       const header = m[1].trim();
-      return { cls: classify(header), header, text: m[2].trim() };
+      return { cls: classify(header), header, text: (m[2] ?? "").trim() };
     }
     return { cls: classify(p.slice(0, 40)), header: null, text: p };
   });
@@ -134,7 +134,7 @@ export function NoteBody({ body, className }: { body: string; className?: string
     return <p className={cn("whitespace-pre-wrap text-sm leading-relaxed text-foreground", className)}>{body}</p>;
   }
 
-  const preamble = grain ? grain.text.split(/grain:/i)[0].trim().replace(/[;.]$/, "") : "";
+  const preamble = grain ? (grain.text.split(/grain:/i)[0] ?? "").trim().replace(/[;.]$/, "") : "";
 
   return (
     <div className={className}>
