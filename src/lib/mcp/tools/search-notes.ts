@@ -7,7 +7,7 @@ export default defineTool({
   name: "search_notes",
   title: "Search notes",
   description:
-    "Search the vault. Excludes expired notes (valid_to < today) unless include_expired=true; always flags expired rows rather than hiding them.",
+    "Search the vault. `query` matches body, entity_key, slug and artist_id (case-insensitive substring). Excludes expired notes (valid_to < today) unless include_expired=true; always flags expired rows rather than hiding them.",
   inputSchema: {
     artist_id: z.string().optional(),
     scope: z.enum(SCOPE).optional(),
@@ -16,7 +16,7 @@ export default defineTool({
     decision: z.enum(DECISION).optional(),
     priority: z.enum(PRIORITY).optional(),
     tag: z.string().optional().describe("Single tag from vocab_note_tag."),
-    query: z.string().optional().describe("Case-insensitive substring match on the note body."),
+    query: z.string().optional().describe("Case-insensitive substring match on body, entity_key, slug and artist_id."),
     include_expired: z.boolean().optional(),
     limit: z.number().int().min(1).max(100).optional(),
   },
@@ -37,7 +37,20 @@ export default defineTool({
     if (a.decision) q = q.eq("decision", a.decision);
     if (a.priority) q = q.eq("priority", a.priority);
     if (a.tag) q = q.eq("note_tags.tag", a.tag);
-    if (a.query) q = q.ilike("body", `%${a.query}%`);
+    if (a.query) {
+      // Match identity columns too, not just body: notes frequently carry the
+      // artist/entity name only in entity_key / slug / artist_id, so a body-only
+      // search silently misses them (this caused a false "missing notes" audit).
+      const v = a.query.replace(/["\\]/g, (c) => `\\${c}`); // quote-safe for PostgREST .or()
+      q = q.or(
+        [
+          `body.ilike."%${v}%"`,
+          `entity_key.ilike."%${v}%"`,
+          `slug.ilike."%${v}%"`,
+          `artist_id.ilike."%${v}%"`,
+        ].join(","),
+      );
+    }
     if (!includeExpired) q = q.or(`valid_to.is.null,valid_to.gte.${today()}`);
 
     const { data, error } = await q;
