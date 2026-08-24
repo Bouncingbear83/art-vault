@@ -157,7 +157,7 @@
       {
         "name": "search_notes",
         "title": "Search notes",
-        "description": "Search the vault. Excludes expired notes (valid_to < today) unless include_expired=true; always flags expired rows rather than hiding them.",
+        "description": "Search the vault. `query` matches body, entity_key, slug and artist_id (case-insensitive substring). Excludes expired notes (valid_to < today) unless include_expired=true; always flags expired rows rather than hiding them.",
         "annotations": {
           "readOnlyHint": true,
           "idempotentHint": true,
@@ -230,7 +230,7 @@
               "type": "string"
             },
             "query": {
-              "description": "Case-insensitive substring match on the note body.",
+              "description": "Case-insensitive substring match on body, entity_key, slug and artist_id.",
               "type": "string"
             },
             "include_expired": {
@@ -355,6 +355,260 @@
           },
           "required": [
             "artist_id"
+          ]
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "score_lot",
+        "title": "Score a lot (Lot Desk v0.6)",
+        "description": "Score a single auction lot against the collector fair-value discipline: rung-ladder anchor on home-market comps, bounded quality delta, per-name K_buy, hard taste + budget gates, and a walk-away ladder. Read-only; writes nothing. Returns the full decision object (Buy / Skip / Monitor with the binding constraint).",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "artist": {
+              "description": "Artist name or slug; resolved to artist_id. Omit if passing artist_id.",
+              "type": "string"
+            },
+            "artist_id": {
+              "description": "Canonical slug; skips name resolution.",
+              "type": "string"
+            },
+            "title": {
+              "type": "string"
+            },
+            "authorship": {
+              "type": "string",
+              "description": "Autograph / Attributed / After / etc. Only Autograph passes the mandate gate."
+            },
+            "medium_raw": {
+              "type": "string",
+              "description": "Verbatim catalogue medium."
+            },
+            "medium_class": {
+              "description": "Oil / Watercolour / ...; inferred from medium_raw if omitted.",
+              "type": "string"
+            },
+            "longest_cm": {
+              "type": "number"
+            },
+            "subject": {
+              "type": "string",
+              "description": "Controlled subject vocab; used for the taste-zone gate."
+            },
+            "palette": {
+              "type": "string",
+              "description": "Sunlit / Grey / Neutral / Moonlit."
+            },
+            "palette_keyword_only": {
+              "description": "Flag a palette call made from the title alone.",
+              "type": "boolean"
+            },
+            "in_zone": {
+              "description": "Human override; else computed from subject + per-artist overrides.",
+              "type": "string",
+              "enum": [
+                "In",
+                "Skip"
+              ]
+            },
+            "est_low": {
+              "type": "number"
+            },
+            "est_high": {
+              "type": "number"
+            },
+            "currency": {
+              "type": "string"
+            },
+            "venue": {
+              "type": "string"
+            },
+            "sale_date": {
+              "type": "string",
+              "description": "ISO yyyy-mm-dd."
+            },
+            "bp_pct": {
+              "description": "Per-house buyer's premium as a fraction; else the desk default.",
+              "type": "number"
+            },
+            "strong_venue_candidate": {
+              "type": "boolean",
+              "description": "Y only if this is a good example that genuinely trades at strong venues; escalates the anchor tier."
+            },
+            "quality_delta": {
+              "description": "Where this lot sits vs the median comp; bounded to observed dispersion. Omit => 1.0, stamped median-quality-assumed.",
+              "type": "number"
+            },
+            "quality_delta_basis": {
+              "type": "string"
+            },
+            "quality_override_reason": {
+              "description": "Required to assert a delta outside the observed comp range.",
+              "type": "string"
+            },
+            "condition": {
+              "type": "string"
+            },
+            "sheet_grade": {
+              "description": "Paper sleeve: 'Finished' required.",
+              "type": "string"
+            },
+            "condition_checked": {
+              "description": "True if a report / verso / UV image has been seen.",
+              "type": "boolean"
+            },
+            "provenance_note": {
+              "type": "string"
+            },
+            "sale_context": {
+              "description": "Multiples-in-sale / pair / budget conflict prose.",
+              "type": "string"
+            },
+            "taste_ok": {
+              "type": "boolean",
+              "description": "Glad to own at a fair price if it never re-rates? Hard gate."
+            },
+            "period_year": {
+              "description": "Budget period; defaults to the sale year.",
+              "type": "number"
+            }
+          },
+          "required": [
+            "title",
+            "authorship",
+            "medium_raw",
+            "longest_cm",
+            "subject",
+            "palette",
+            "currency",
+            "venue",
+            "sale_date",
+            "strong_venue_candidate",
+            "taste_ok"
+          ]
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "commit_lot",
+        "title": "Commit a won lot to the ledger (Lot Desk v0.6)",
+        "description": "On a win: re-score the lot, then record it. Writes a Lot note (I.5 body grammar) and a positions row with the actual hammer paid and all-in cost. Flags if the hammer paid exceeded the walk-away, or if any gate had failed. Does not write the budget directly; the positions trigger keeps committed_gbp in sync.",
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "artist": {
+              "type": "string"
+            },
+            "artist_id": {
+              "type": "string"
+            },
+            "title": {
+              "type": "string"
+            },
+            "authorship": {
+              "type": "string"
+            },
+            "medium_raw": {
+              "type": "string"
+            },
+            "medium_class": {
+              "type": "string"
+            },
+            "longest_cm": {
+              "type": "number"
+            },
+            "subject": {
+              "type": "string"
+            },
+            "palette": {
+              "type": "string"
+            },
+            "in_zone": {
+              "type": "string",
+              "enum": [
+                "In",
+                "Skip"
+              ]
+            },
+            "currency": {
+              "type": "string"
+            },
+            "venue": {
+              "type": "string"
+            },
+            "sale_date": {
+              "type": "string"
+            },
+            "bp_pct": {
+              "type": "number"
+            },
+            "strong_venue_candidate": {
+              "type": "boolean"
+            },
+            "quality_delta": {
+              "type": "number"
+            },
+            "quality_override_reason": {
+              "type": "string"
+            },
+            "condition": {
+              "type": "string"
+            },
+            "sheet_grade": {
+              "type": "string"
+            },
+            "condition_checked": {
+              "type": "boolean"
+            },
+            "taste_ok": {
+              "type": "boolean"
+            },
+            "hammer_paid_gbp": {
+              "type": "number",
+              "description": "The winning hammer actually paid (GBP)."
+            },
+            "house": {
+              "description": "Saleroom; defaults to venue.",
+              "type": "string"
+            },
+            "condition_status": {
+              "description": "Condition as bought, for the ledger.",
+              "type": "string"
+            },
+            "buy_date": {
+              "description": "ISO; defaults to today.",
+              "type": "string"
+            },
+            "rationale": {
+              "description": "The glad-to-own line; else the scorer's.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "title",
+            "authorship",
+            "medium_raw",
+            "longest_cm",
+            "subject",
+            "palette",
+            "currency",
+            "venue",
+            "sale_date",
+            "strong_venue_candidate",
+            "taste_ok",
+            "hammer_paid_gbp"
           ]
         },
         "outputSchema": null

@@ -23,8 +23,12 @@ import { Route as Char91DotwellKnownChar93OauthProtectedResourceMcpRouteImport }
 import { Route as AuthenticatedArtistsIndexRouteImport } from './routes/_authenticated/artists.index'
 import { Route as AuthenticatedArtistsArtistIdRouteImport } from './routes/_authenticated/artists.$artistId'
 import { Route as AuthenticatedBookIndexRouteImport } from './routes/_authenticated/book.index'
+import { Route as AuthenticatedDeskIndexRouteImport } from './routes/_authenticated/desk/index'
+import { Route as AuthenticatedDeskLogRouteImport } from './routes/_authenticated/desk/log'
+import { Route as AuthenticatedDeskParamsRouteImport } from './routes/_authenticated/desk/params'
 import { Route as AuthenticatedNotesIndexRouteImport } from './routes/_authenticated/notes.index'
 import { Route as AuthenticatedNotesNewRouteImport } from './routes/_authenticated/notes.new'
+import { Route as AuthenticatedPositionsIndexRouteImport } from './routes/_authenticated/positions.index'
 import { Route as ApiPublicCompsRouteImport } from './routes/api/public/comps'
 import { Route as AuthenticatedNotesNoteIdEditRouteImport } from './routes/_authenticated/notes.$noteId.edit'
 
@@ -105,6 +109,21 @@ const AuthenticatedBookIndexRoute = AuthenticatedBookIndexRouteImport.update({
   path: '/book/',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedDeskIndexRoute = AuthenticatedDeskIndexRouteImport.update({
+  id: '/desk/',
+  path: '/desk/',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedDeskLogRoute = AuthenticatedDeskLogRouteImport.update({
+  id: '/desk/log',
+  path: '/desk/log',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedDeskParamsRoute = AuthenticatedDeskParamsRouteImport.update({
+  id: '/desk/params',
+  path: '/desk/params',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedNotesIndexRoute = AuthenticatedNotesIndexRouteImport.update({
   id: '/notes/',
   path: '/notes/',
@@ -115,6 +134,12 @@ const AuthenticatedNotesNewRoute = AuthenticatedNotesNewRouteImport.update({
   path: '/notes/new',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedPositionsIndexRoute =
+  AuthenticatedPositionsIndexRouteImport.update({
+    id: '/positions/',
+    path: '/positions/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const ApiPublicCompsRoute = ApiPublicCompsRouteImport.update({
   id: '/api/public/comps',
   path: '/api/public/comps',
@@ -139,11 +164,15 @@ export interface FileRoutesByFullPath {
   '/.well-known/oauth-authorization-server/mcp': typeof Char91DotwellKnownChar93OauthAuthorizationServerMcpRoute
   '/.well-known/oauth-protected-resource/mcp': typeof Char91DotwellKnownChar93OauthProtectedResourceMcpRoute
   '/artists/$artistId': typeof AuthenticatedArtistsArtistIdRoute
+  '/desk/log': typeof AuthenticatedDeskLogRoute
+  '/desk/params': typeof AuthenticatedDeskParamsRoute
   '/notes/new': typeof AuthenticatedNotesNewRoute
   '/api/public/comps': typeof ApiPublicCompsRoute
   '/artists/': typeof AuthenticatedArtistsIndexRoute
   '/book/': typeof AuthenticatedBookIndexRoute
+  '/desk/': typeof AuthenticatedDeskIndexRoute
   '/notes/': typeof AuthenticatedNotesIndexRoute
+  '/positions/': typeof AuthenticatedPositionsIndexRoute
   '/notes/$noteId/edit': typeof AuthenticatedNotesNoteIdEditRoute
 }
 export interface FileRoutesByTo {
@@ -158,11 +187,15 @@ export interface FileRoutesByTo {
   '/.well-known/oauth-authorization-server/mcp': typeof Char91DotwellKnownChar93OauthAuthorizationServerMcpRoute
   '/.well-known/oauth-protected-resource/mcp': typeof Char91DotwellKnownChar93OauthProtectedResourceMcpRoute
   '/artists/$artistId': typeof AuthenticatedArtistsArtistIdRoute
+  '/desk/log': typeof AuthenticatedDeskLogRoute
+  '/desk/params': typeof AuthenticatedDeskParamsRoute
   '/notes/new': typeof AuthenticatedNotesNewRoute
   '/api/public/comps': typeof ApiPublicCompsRoute
   '/artists': typeof AuthenticatedArtistsIndexRoute
   '/book': typeof AuthenticatedBookIndexRoute
+  '/desk': typeof AuthenticatedDeskIndexRoute
   '/notes': typeof AuthenticatedNotesIndexRoute
+  '/positions': typeof AuthenticatedPositionsIndexRoute
   '/notes/$noteId/edit': typeof AuthenticatedNotesNoteIdEditRoute
 }
 export interface FileRoutesById {
@@ -179,11 +212,15 @@ export interface FileRoutesById {
   '/.well-known/oauth-authorization-server/mcp': typeof Char91DotwellKnownChar93OauthAuthorizationServerMcpRoute
   '/.well-known/oauth-protected-resource/mcp': typeof Char91DotwellKnownChar93OauthProtectedResourceMcpRoute
   '/_authenticated/artists/$artistId': typeof AuthenticatedArtistsArtistIdRoute
+  '/_authenticated/desk/log': typeof AuthenticatedDeskLogRoute
+  '/_authenticated/desk/params': typeof AuthenticatedDeskParamsRoute
   '/_authenticated/notes/new': typeof AuthenticatedNotesNewRoute
   '/api/public/comps': typeof ApiPublicCompsRoute
   '/_authenticated/artists/': typeof AuthenticatedArtistsIndexRoute
   '/_authenticated/book/': typeof AuthenticatedBookIndexRoute
+  '/_authenticated/desk/': typeof AuthenticatedDeskIndexRoute
   '/_authenticated/notes/': typeof AuthenticatedNotesIndexRoute
+  '/_authenticated/positions/': typeof AuthenticatedPositionsIndexRoute
   '/_authenticated/notes/$noteId/edit': typeof AuthenticatedNotesNoteIdEditRoute
 }
 export interface FileRouteTypes {
@@ -200,11 +237,15 @@ export interface FileRouteTypes {
     | '/.well-known/oauth-authorization-server/mcp'
     | '/.well-known/oauth-protected-resource/mcp'
     | '/artists/$artistId'
+    | '/desk/log'
+    | '/desk/params'
     | '/notes/new'
     | '/api/public/comps'
     | '/artists/'
     | '/book/'
+    | '/desk/'
     | '/notes/'
+    | '/positions/'
     | '/notes/$noteId/edit'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -219,11 +260,15 @@ export interface FileRouteTypes {
     | '/.well-known/oauth-authorization-server/mcp'
     | '/.well-known/oauth-protected-resource/mcp'
     | '/artists/$artistId'
+    | '/desk/log'
+    | '/desk/params'
     | '/notes/new'
     | '/api/public/comps'
     | '/artists'
     | '/book'
+    | '/desk'
     | '/notes'
+    | '/positions'
     | '/notes/$noteId/edit'
   id:
     | '__root__'
@@ -239,11 +284,15 @@ export interface FileRouteTypes {
     | '/.well-known/oauth-authorization-server/mcp'
     | '/.well-known/oauth-protected-resource/mcp'
     | '/_authenticated/artists/$artistId'
+    | '/_authenticated/desk/log'
+    | '/_authenticated/desk/params'
     | '/_authenticated/notes/new'
     | '/api/public/comps'
     | '/_authenticated/artists/'
     | '/_authenticated/book/'
+    | '/_authenticated/desk/'
     | '/_authenticated/notes/'
+    | '/_authenticated/positions/'
     | '/_authenticated/notes/$noteId/edit'
   fileRoutesById: FileRoutesById
 }
@@ -359,6 +408,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedBookIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/desk/': {
+      id: '/_authenticated/desk/'
+      path: '/desk'
+      fullPath: '/desk/'
+      preLoaderRoute: typeof AuthenticatedDeskIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/desk/log': {
+      id: '/_authenticated/desk/log'
+      path: '/desk/log'
+      fullPath: '/desk/log'
+      preLoaderRoute: typeof AuthenticatedDeskLogRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/desk/params': {
+      id: '/_authenticated/desk/params'
+      path: '/desk/params'
+      fullPath: '/desk/params'
+      preLoaderRoute: typeof AuthenticatedDeskParamsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/notes/': {
       id: '/_authenticated/notes/'
       path: '/notes'
@@ -371,6 +441,13 @@ declare module '@tanstack/react-router' {
       path: '/notes/new'
       fullPath: '/notes/new'
       preLoaderRoute: typeof AuthenticatedNotesNewRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/positions/': {
+      id: '/_authenticated/positions/'
+      path: '/positions'
+      fullPath: '/positions/'
+      preLoaderRoute: typeof AuthenticatedPositionsIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/api/public/comps': {
@@ -393,20 +470,28 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedRegisterRoute: typeof AuthenticatedRegisterRoute
   AuthenticatedArtistsArtistIdRoute: typeof AuthenticatedArtistsArtistIdRoute
+  AuthenticatedDeskLogRoute: typeof AuthenticatedDeskLogRoute
+  AuthenticatedDeskParamsRoute: typeof AuthenticatedDeskParamsRoute
   AuthenticatedNotesNewRoute: typeof AuthenticatedNotesNewRoute
   AuthenticatedArtistsIndexRoute: typeof AuthenticatedArtistsIndexRoute
   AuthenticatedBookIndexRoute: typeof AuthenticatedBookIndexRoute
+  AuthenticatedDeskIndexRoute: typeof AuthenticatedDeskIndexRoute
   AuthenticatedNotesIndexRoute: typeof AuthenticatedNotesIndexRoute
+  AuthenticatedPositionsIndexRoute: typeof AuthenticatedPositionsIndexRoute
   AuthenticatedNotesNoteIdEditRoute: typeof AuthenticatedNotesNoteIdEditRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedRegisterRoute: AuthenticatedRegisterRoute,
   AuthenticatedArtistsArtistIdRoute: AuthenticatedArtistsArtistIdRoute,
+  AuthenticatedDeskLogRoute: AuthenticatedDeskLogRoute,
+  AuthenticatedDeskParamsRoute: AuthenticatedDeskParamsRoute,
   AuthenticatedNotesNewRoute: AuthenticatedNotesNewRoute,
   AuthenticatedArtistsIndexRoute: AuthenticatedArtistsIndexRoute,
   AuthenticatedBookIndexRoute: AuthenticatedBookIndexRoute,
+  AuthenticatedDeskIndexRoute: AuthenticatedDeskIndexRoute,
   AuthenticatedNotesIndexRoute: AuthenticatedNotesIndexRoute,
+  AuthenticatedPositionsIndexRoute: AuthenticatedPositionsIndexRoute,
   AuthenticatedNotesNoteIdEditRoute: AuthenticatedNotesNoteIdEditRoute,
 }
 
