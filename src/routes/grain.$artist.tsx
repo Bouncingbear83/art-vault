@@ -2,12 +2,17 @@
 // Render-only. Reads the comps grain directly (RLS-permissive per the desk
 // table pattern); Foreign and Print rows are dropped inside computeGrainStats.
 //
-// VERIFY BEFORE COMMIT (two assumptions, both one-line fixes if wrong):
-// 1. supabase client import path: Lovable default is
-//    "@/integrations/supabase/client"; match whatever /desk uses.
-// 2. comps grain artist key column is `artist_id` (slug, per the nightly
-//    rollup slugify + {Forbes, Brangwyn} override). If the grain still keys
-//    on raw `artist` name, swap the .eq() accordingly.
+// v2: pulls sheet_grade (needed for the paper-sleeve finished-watercolour
+// ceiling bar) and passes artistId through so the panel can apply the §F
+// paper carve-out.
+//
+// VERIFY BEFORE COMMIT:
+// 1. supabase client import path matches whatever /desk uses
+//    (Lovable default "@/integrations/supabase/client").
+// 2. comps grain key column is `artist_id` (slug). If the base table still
+//    keys on raw `artist`, swap the .eq() accordingly.
+// 3. sheet_grade column exists on comps. If not, the query drops it and the
+//    ceiling bar auto-falls-back to all-watercolour with a visible flag.
 
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
@@ -29,7 +34,7 @@ function GrainPage() {
       const { data, error } = await supabase
         .from("comps")
         .select(
-          "artist_id, medium_class, vtype_resolved, hammer_equiv_gbp, longest_cm, status, in_zone, sale_date, title"
+          "artist_id, medium_class, vtype_resolved, hammer_equiv_gbp, longest_cm, status, in_zone, sale_date, sheet_grade, title"
         )
         .eq("artist_id", artist)
         .limit(2000);
@@ -61,9 +66,9 @@ function GrainPage() {
       )}
 
       {rows == null && !error ? (
-        <div className="text-sm text-stone-400 font-mono">loading grain…</div>
+        <div className="text-sm text-stone-400 font-mono">loading grain\u2026</div>
       ) : rows != null ? (
-        <GrainPanels rows={rows} />
+        <GrainPanels rows={rows} artistId={artist} />
       ) : null}
     </div>
   );
