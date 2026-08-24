@@ -2,9 +2,16 @@
 // behind headline Exit/Regional ratios. Render-only diagnostics; no gate logic
 // lives here (gates stay in the rollup / scorer per the app contract).
 //
-// Reads the comps grain (spec §1 columns). Foreign rows are excluded from all
-// statistics per §E geography discipline. N_GATE mirrors the §E Exit_Strong
-// n >= 8 rule; keep in lockstep with desk_params if that ever becomes dynamic.
+// v2 adds the paper-sleeve carve-out. For paper-primary names (Mandate §F: a
+// closed two-name set, Roberts + Melville) the Exit/Regional ratio is a
+// category error: it divides a premium-finished-sheet exit median by a
+// cheap-scrap regional median, two non-comparable populations. So for those
+// names the ratio strip is suppressed and replaced by a ceiling-relative bar
+// (finished-watercolour median vs the stored Paper_Ceiling), which is the
+// number that actually governs a paper bid.
+//
+// Reads the comps grain (spec §1 columns). Foreign rows excluded per §E.
+// N_GATE mirrors the §E Exit_Strong n >= 8 rule.
 
 import { useMemo, type ReactNode } from "react";
 import {
@@ -27,11 +34,20 @@ export interface GrainRow {
   status: string;
   in_zone: boolean | null;
   sale_date: string;
+  sheet_grade?: string | null;
   title?: string | null;
 }
 
 const N_GATE = 8;
-const TAIL_TRIM = 0.1; // strip top decile per tier for the tail-stripped ratio
+const TAIL_TRIM = 0.1;
+
+// Source of truth is the Mediums tab (Paper_Primary Y/N, Paper_Ceiling_GBP).
+// Mirrored here as a constant until artist_desk_config exposes them to the
+// client. The sub-sleeve is a closed set per §F; keep in lockstep if it changes.
+const PAPER_SLEEVE: Record<string, { ceiling: number }> = {
+  "david-roberts": { ceiling: 3000 },
+  "arthur-melville": { ceiling: 3750 },
+};
 
 const TIERS = ["Buy_Regional", "Straddle", "Exit_Strong"] as const;
 type Tier = (typeof TIERS)[number];
@@ -42,11 +58,11 @@ const TIER_LABEL: Record<Tier, string> = {
 };
 
 const MEDIUM_COLOUR: Record<string, string> = {
-  Oil: "#1f5f5b", // teal: the mandate medium
-  Watercolour: "#b8860b", // amber: paper sleeve
+  Oil: "#1f5f5b",
+  Watercolour: "#b8860b",
   Pastel: "#8a7d6b",
   Mixed: "#8a7d6b",
-  Print: "#c0392b", // should never appear in stats; if visible, that is itself a flag
+  Print: "#c0392b",
 };
 
 // ---------- stats helpers ----------
@@ -66,9 +82,9 @@ const trimTop = (xs: number[], frac: number): number[] => {
 };
 
 const gbp = (v: number | null): string =>
-  v == null ? "–" : `£${Math.round(v).toLocaleString("en-GB")}`;
+  v == null ? "\u2013" : `\u00a3${Math.round(v).toLocaleString("en-GB")}`;
 
-const ratioFmt = (v: number | null): string => (v == null ? "–" : `${v.toFixed(2)}x`);
+const ratioFmt = (v: number | null): string => (v == null ? "\u2013" : `${v.toFixed(2)}x`);
 
 interface TierStats {
   n: number;
@@ -83,8 +99,11 @@ export interface GrainStats {
   ratioRaw: number | null;
   ratioOil: number | null;
   ratioTrimmed: number | null;
-  usable: GrainRow[]; // Sold, UK, numeric hammer, non-Print
+  usable: GrainRow[];
   mediumLedger: { medium: string; n: number; med: number | null }[];
+  finishedWcMed: number | null; // finished-watercolour UK median (paper ceiling comparator)
+  finishedWcN: number;
+  wcHasGrade: boolean; // false => sheet_grade absent, ceiling bar falls back to all-watercolour
 }
 
 export function computeGrainStats(rows: GrainRow[]): GrainStats {
@@ -128,6 +147,16 @@ export function computeGrainStats(rows: GrainRow[]): GrainStats {
     })
     .filter((x) => x.n > 0);
 
+  // finished-watercolour median for the ceiling comparator. §F derives the
+  // ceiling on FINISHED sheets, so compare like-for-like. If sheet_grade is
+  // absent from the grain, fall back to all-watercolour and flag it.
+  const wc = usable.filter((r) => r.medium_class === "Watercolour");
+  const wcHasGrade = wc.some((r) => r.sheet_grade != null && r.sheet_grade !== "");
+  const wcFinished = wcHasGrade
+    ? wc.filter((r) => (r.sheet_grade ?? "").toLowerCase() === "finished")
+    : wc;
+  const wcVals = wcFinished.map((r) => r.hammer_equiv_gbp as number);
+
   return {
     byTier,
     ratioRaw: div(byTier.Exit_Strong.med, byTier.Buy_Regional.med),
@@ -135,6 +164,9 @@ export function computeGrainStats(rows: GrainRow[]): GrainStats {
     ratioTrimmed: div(byTier.Exit_Strong.medTrimmed, byTier.Buy_Regional.medTrimmed),
     usable,
     mediumLedger,
+    finishedWcMed: median(wcVals),
+    finishedWcN: wcVals.length,
+    wcHasGrade,
   };
 }
 
@@ -154,16 +186,81 @@ function Badge({ tone, children }: { tone: "ok" | "warn" | "mute"; children: Rea
   );
 }
 
-// ---------- Panel 1: confound-delta KPI strip ----------
+// ---------- Paper-sleeve ceiling bar (replaces the ratio strip for §F names) ----------
+
+function CeilingBar({
+  s,
+  ceiling,
+}: {
+  s: GrainStats;
+  ceiling: number;
+}) {
+  const med = s.finishedWcMed;
+  const ratio = med != null && ceiling > 0 ? med / ceiling : null;
+  const fillPct = ratio != null ? Math.min(100, ratio * 100) : 0;
+  const room = ratio != null && ratio < 1;
+
+  return (
+    <div className="border border-stone-200 rounded p-5 bg-stone-50">
+      <div className="flex items-baseline justify-between mb-1">
+        <div className="text-sm">
+          {s.wcHasGrade ? "Finished watercolour" : "Watercolour"} median (UK sold)
+        </div>
+        <div className="font-mono text-2xl">{gbp(med)}</div>
+      </div>
+      <div className="flex items-baseline justify-between mb-3 text-xs text-stone-500">
+        <div>vs Paper_Ceiling {gbp(ceiling)}</div>
+        <div className="font-mono">n={s.finishedWcN}</div>
+      </div>
+
+      <div className="relative h-4 bg-stone-200 rounded overflow-hidden">
+        <div
+          className={`absolute inset-y-0 left-0 ${room ? "bg-teal-700" : "bg-amber-600"}`}
+          style={{ width: `${fillPct}%` }}
+        />
+        {/* ceiling marker at 100% */}
+        <div className="absolute inset-y-0 right-0 w-px bg-stone-800" />
+      </div>
+
+      <div className="mt-3 flex items-center gap-2">
+        <Badge tone={room ? "ok" : "warn"}>
+          {ratio != null ? `${ratio.toFixed(2)}x CEILING` : "NO DATA"}
+        </Badge>
+        <span className="text-xs text-stone-500">
+          {room
+            ? "clears below ceiling: room on paper"
+            : ratio != null
+              ? "at or above ceiling: no paper room"
+              : "no finished-watercolour comps"}
+        </span>
+      </div>
+
+      {!s.wcHasGrade && (
+        <p className="mt-3 text-xs text-amber-700">
+          sheet_grade absent from grain: bar uses all watercolour, not
+          finished-only. Add Sheet_Grade to the comps export to make this exact.
+        </p>
+      )}
+    </div>
+  );
+}
+
+// ---------- Panel 1: confound-delta KPI strip (oil names only) ----------
 
 function KpiStrip({ s }: { s: GrainStats }) {
   const gated = s.byTier.Exit_Strong.n >= N_GATE;
   const gatedOil = s.byTier.Exit_Strong.nOil >= N_GATE;
 
-  const delta = (controlled: number | null): string => {
-    if (s.ratioRaw == null || controlled == null || s.ratioRaw === 0) return "–";
-    const d = (s.ratioRaw - controlled) / s.ratioRaw;
-    return `${d >= 0 ? "−" : "+"}${Math.abs(d * 100).toFixed(0)}%`;
+  // Δ reads as: how far the controlled ratio moves off raw, direction explicit.
+  // down = control removed inflation (mix stripped, the healthy case);
+  // up = controlled ratio is HIGHER (thin different slice, treat with suspicion).
+  const delta = (controlled: number | null): { text: string; suspect: boolean } | null => {
+    if (s.ratioRaw == null || controlled == null || s.ratioRaw === 0) return null;
+    const d = (controlled - s.ratioRaw) / s.ratioRaw;
+    return {
+      text: `${d >= 0 ? "\u2191" : "\u2193"}${Math.abs(d * 100).toFixed(0)}% vs raw`,
+      suspect: d > 0,
+    };
   };
 
   const cells: {
@@ -171,9 +268,9 @@ function KpiStrip({ s }: { s: GrainStats }) {
     ratio: number | null;
     n: number;
     ok: boolean;
-    delta?: string;
+    delta: { text: string; suspect: boolean } | null;
   }[] = [
-    { label: "RAW", ratio: s.ratioRaw, n: s.byTier.Exit_Strong.n, ok: gated },
+    { label: "RAW", ratio: s.ratioRaw, n: s.byTier.Exit_Strong.n, ok: gated, delta: null },
     {
       label: "OIL ONLY",
       ratio: s.ratioOil,
@@ -198,11 +295,15 @@ function KpiStrip({ s }: { s: GrainStats }) {
             {c.label} EXIT/REGIONAL
           </div>
           <div className="font-mono text-2xl">{ratioFmt(c.ratio)}</div>
-          <div className="mt-1 flex items-center gap-2">
+          <div className="mt-1 flex flex-wrap items-center gap-2">
             <Badge tone={c.ok ? "ok" : "warn"}>{c.ok ? "TRUSTED" : "THIN"}</Badge>
             <span className="font-mono text-xs text-stone-500">n={c.n}</span>
             {c.delta && (
-              <span className="font-mono text-xs text-stone-500">Δ {c.delta}</span>
+              <span
+                className={`font-mono text-xs ${c.delta.suspect ? "text-amber-700" : "text-stone-500"}`}
+              >
+                {c.delta.text}
+              </span>
             )}
           </div>
         </div>
@@ -218,8 +319,6 @@ function TierStrip({ s }: { s: GrainStats }) {
     x: TIERS.indexOf(r.vtype_resolved as Tier) + ((((i * 37) % 13) / 13 - 0.5) * 0.55),
     y: r.hammer_equiv_gbp as number,
     medium: r.medium_class,
-    title: r.title ?? "",
-    date: r.sale_date,
   }));
 
   return (
@@ -279,7 +378,7 @@ function TierStrip({ s }: { s: GrainStats }) {
   );
 }
 
-// ---------- Panel 3: size scatter (size-mix test) ----------
+// ---------- Panel 3: size scatter ----------
 
 function SizeScatter({ s }: { s: GrainStats }) {
   const withSize = s.usable.filter((r) => r.longest_cm != null && r.longest_cm > 0);
@@ -358,8 +457,9 @@ function MediumLedger({ s }: { s: GrainStats }) {
 
 // ---------- composed panel ----------
 
-export function GrainPanels({ rows }: { rows: GrainRow[] }) {
+export function GrainPanels({ rows, artistId }: { rows: GrainRow[]; artistId: string }) {
   const s = useMemo(() => computeGrainStats(rows), [rows]);
+  const sleeve = PAPER_SLEEVE[artistId];
 
   if (!s.usable.length) {
     return (
@@ -373,25 +473,43 @@ export function GrainPanels({ rows }: { rows: GrainRow[] }) {
   return (
     <div className="space-y-8">
       <section>
-        <h2 className="text-xs tracking-widest text-stone-500 mb-2">
-          CONFOUND DELTA: IF RAW BEATS CONTROLLED, THE RATIO IS MIX, NOT EDGE
-        </h2>
-        <KpiStrip s={s} />
+        {sleeve ? (
+          <>
+            <h2 className="text-xs tracking-widest text-stone-500 mb-2">
+              PAPER SLEEVE: CEILING-RELATIVE READ (EXIT/REGIONAL SUPPRESSED)
+            </h2>
+            <CeilingBar s={s} ceiling={sleeve.ceiling} />
+            <p className="mt-2 text-xs text-stone-500">
+              Exit/Regional ratio is a category error for a paper-primary name:
+              it divides premium finished sheets by cheap regional scraps. The
+              bar above is the number that governs the bid.
+            </p>
+          </>
+        ) : (
+          <>
+            <h2 className="text-xs tracking-widest text-stone-500 mb-2">
+              CONFOUND DELTA: IF RAW BEATS CONTROLLED, THE RATIO IS MIX, NOT EDGE
+            </h2>
+            <KpiStrip s={s} />
+          </>
+        )}
       </section>
 
       <section>
         <h2 className="text-xs tracking-widest text-stone-500 mb-2">
-          SOLD LOTS BY TIER (LOG £, RULE = TIER MEDIAN, COLOUR = MEDIUM)
+          SOLD LOTS BY TIER (LOG \u00a3, RULE = TIER MEDIAN, COLOUR = MEDIUM)
         </h2>
         <TierStrip s={s} />
       </section>
 
-      <section>
-        <h2 className="text-xs tracking-widest text-stone-500 mb-2">
-          SIZE VS PRICE (IF EXIT DOTS SIT UP AND RIGHT, SPREAD IS SIZE-MIX)
-        </h2>
-        <SizeScatter s={s} />
-      </section>
+      {!sleeve && (
+        <section>
+          <h2 className="text-xs tracking-widest text-stone-500 mb-2">
+            SIZE VS PRICE (IF EXIT DOTS SIT UP AND RIGHT, SPREAD IS SIZE-MIX)
+          </h2>
+          <SizeScatter s={s} />
+        </section>
+      )}
 
       <section>
         <h2 className="text-xs tracking-widest text-stone-500 mb-2">
