@@ -356,6 +356,75 @@ export type Database = {
           },
         ]
       }
+      comps_stage: {
+        Row: {
+          artist: string
+          authorship: string | null
+          currency: string | null
+          est_high: number | null
+          est_low: number | null
+          h_cm: number | null
+          id: number
+          ingested_at: string
+          load_batch: string
+          medium_class: string | null
+          medium_raw: string | null
+          palette: string | null
+          realized_basis: string | null
+          realized_native: number | null
+          sale_date: string | null
+          status: string | null
+          subject: string | null
+          title: string | null
+          venue: string | null
+          w_cm: number | null
+        }
+        Insert: {
+          artist: string
+          authorship?: string | null
+          currency?: string | null
+          est_high?: number | null
+          est_low?: number | null
+          h_cm?: number | null
+          id?: never
+          ingested_at?: string
+          load_batch?: string
+          medium_class?: string | null
+          medium_raw?: string | null
+          palette?: string | null
+          realized_basis?: string | null
+          realized_native?: number | null
+          sale_date?: string | null
+          status?: string | null
+          subject?: string | null
+          title?: string | null
+          venue?: string | null
+          w_cm?: number | null
+        }
+        Update: {
+          artist?: string
+          authorship?: string | null
+          currency?: string | null
+          est_high?: number | null
+          est_low?: number | null
+          h_cm?: number | null
+          id?: never
+          ingested_at?: string
+          load_batch?: string
+          medium_class?: string | null
+          medium_raw?: string | null
+          palette?: string | null
+          realized_basis?: string | null
+          realized_native?: number | null
+          sale_date?: string | null
+          status?: string | null
+          subject?: string | null
+          title?: string | null
+          venue?: string | null
+          w_cm?: number | null
+        }
+        Relationships: []
+      }
       desk_params: {
         Row: {
           arr_rate: number
