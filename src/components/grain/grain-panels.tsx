@@ -432,6 +432,64 @@ function SizeScatter({ s }: { s: GrainStats }) {
   );
 }
 
+// ---------- Paper scatter: watercolour size vs price (paper names only) ----------
+// Diagnoses whether the paper premium is size-driven, and which finished sheets
+// clear ABOVE the ceiling (the fat-tail optionality §F flags). The tier strip
+// showed watercolours climbing £150 -> £11k across tiers; this asks why.
+
+function PaperSizeScatter({ s, ceiling }: { s: GrainStats; ceiling: number }) {
+  const wc = s.usable.filter(
+    (r) => r.medium_class === "Watercolour" && r.longest_cm != null && r.longest_cm > 0
+  );
+  const isFinished = (r: GrainRow) => (r.sheet_grade ?? "").toLowerCase() === "finished";
+  const finished = wc
+    .filter(isFinished)
+    .map((r) => ({ x: r.longest_cm, y: r.hammer_equiv_gbp }));
+  const other = wc
+    .filter((r) => !isFinished(r))
+    .map((r) => ({ x: r.longest_cm, y: r.hammer_equiv_gbp }));
+
+  return (
+    <ResponsiveContainer width="100%" height={280}>
+      <ScatterChart margin={{ top: 8, right: 16, bottom: 8, left: 8 }}>
+        <XAxis
+          type="number"
+          dataKey="x"
+          name="Longest cm"
+          unit="cm"
+          tick={{ fontSize: 11, fontFamily: "monospace" }}
+          axisLine={false}
+          tickLine={false}
+        />
+        <YAxis
+          type="number"
+          dataKey="y"
+          scale="log"
+          domain={["auto", "auto"]}
+          tickFormatter={(v: number) => gbp(v)}
+          tick={{ fontSize: 11, fontFamily: "monospace" }}
+          width={72}
+          axisLine={false}
+          tickLine={false}
+        />
+        <ZAxis range={[28, 28]} />
+        <Tooltip
+          formatter={(v: number, name: string) => (name === "Longest cm" ? `${v}cm` : gbp(v))}
+          contentStyle={{ fontFamily: "monospace", fontSize: 12 }}
+        />
+        <ReferenceLine
+          y={ceiling}
+          stroke="#44403c"
+          strokeDasharray="4 3"
+          label={{ value: `ceiling ${gbp(ceiling)}`, position: "insideTopRight", fontSize: 10 }}
+        />
+        <Scatter name="Finished" data={finished} fill="#b8860b" fillOpacity={0.65} />
+        <Scatter name="Sketch/other" data={other} fill="#8a7d6b" fillOpacity={0.45} />
+      </ScatterChart>
+    </ResponsiveContainer>
+  );
+}
+
 // ---------- Panel 4: medium ledger ----------
 
 function MediumLedger({ s }: { s: GrainStats }) {
@@ -497,17 +555,28 @@ export function GrainPanels({ rows, artistId }: { rows: GrainRow[]; artistId: st
 
       <section>
         <h2 className="text-xs tracking-widest text-stone-500 mb-2">
-          SOLD LOTS BY TIER (LOG \u00a3, RULE = TIER MEDIAN, COLOUR = MEDIUM)
+          SOLD LOTS BY TIER (LOG £, RULE = TIER MEDIAN, COLOUR = MEDIUM)
         </h2>
         <TierStrip s={s} />
       </section>
 
-      {!sleeve && (
+      {!sleeve ? (
         <section>
           <h2 className="text-xs tracking-widest text-stone-500 mb-2">
             SIZE VS PRICE (IF EXIT DOTS SIT UP AND RIGHT, SPREAD IS SIZE-MIX)
           </h2>
           <SizeScatter s={s} />
+        </section>
+      ) : (
+        <section>
+          <h2 className="text-xs tracking-widest text-stone-500 mb-2">
+            WATERCOLOUR SIZE VS PRICE (IS THE PAPER PREMIUM SIZE-DRIVEN?)
+          </h2>
+          <PaperSizeScatter s={s} ceiling={sleeve.ceiling} />
+          <p className="mt-2 text-xs text-stone-500">
+            Finished sheets in amber, sketches/other muted. Points above the
+            dashed ceiling are the fat-tail optionality: which sheets to chase.
+          </p>
         </section>
       )}
 
