@@ -4,6 +4,7 @@ import { supabaseForUser } from "../supabase";
 import { errorResult, textResult, today } from "../shared";
 import { loadScoreInputs, resolveArtist } from "../../desk/slices";
 import { scoreLot, type LotInput, type ScoreBundle } from "../../desk/score";
+import { lotRowFromDecision } from "../../desk/persist";
 
 // Re-scores server-side to snapshot the anchor + params, records the ACTUAL hammer paid,
 // writes a Lot note and a positions row. budget.committed_gbp is maintained by the
@@ -149,6 +150,14 @@ export default defineTool({
       .select("position_id")
       .single();
     if (pErr) throw new ToolError(`Lot note ${note.note_id} written, but positions insert failed: ${pErr.message}`);
+
+        // graduate the candidate row (won + links); upsert so a never-scored lot still lands
+    const lotRow = lotRowFromDecision(d, lot, { captured_by: "claude", source_ref: sale_key });
+    const { error: lErr } = await sb.from("lots").upsert(
+      { ...lotRow, status: "won", position_id: pos.position_id, lot_note_id: note.note_id },
+      { onConflict: "sale_key" },
+    );
+    if (lErr) flags.push(`lots-upsert-failed:${lErr.message}`);
 
     return textResult({
       committed: true,
