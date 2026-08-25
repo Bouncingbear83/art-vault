@@ -44,6 +44,7 @@ function NotesByTag() {
       <div className="mb-6">
         <Link
           to="/notes/new"
+          search={{ artist: "", entity: "" }}
           className="label-caps rounded-sm border border-harbour px-4 py-2 text-harbour transition-colors hover:bg-harbour hover:text-background"
         >
           + New note

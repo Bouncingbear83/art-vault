@@ -86,7 +86,7 @@ const median = (xs: number[]): number | null => {
   if (!xs.length) return null;
   const s = [...xs].sort((a, b) => a - b);
   const m = Math.floor(s.length / 2);
-  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+  return s.length % 2 ? s[m]! : (s[m - 1]! + s[m]!) / 2;
 };
 
 const trimTop = (xs: number[], frac: number): number[] => {
@@ -294,7 +294,7 @@ function Key({ items }: { items: { colour: string; label: string; shape?: GlyphS
     <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-stone-500">
       {items.map((it) => (
         <span key={it.label} className="inline-flex items-center gap-1.5">
-          <Glyph colour={it.colour} shape={it.shape} />
+          <Glyph colour={it.colour} {...(it.shape ? { shape: it.shape } : {})} />
           {it.label}
         </span>
       ))}
@@ -304,7 +304,7 @@ function Key({ items }: { items: { colour: string; label: string; shape?: GlyphS
 
 function LotTooltip({ active, payload }: { active?: boolean; payload?: Array<{ payload: ReturnType<typeof enrich> }> }) {
   if (!active || !payload || !payload.length) return null;
-  const p = payload[0].payload;
+  const p = payload[0]!.payload;
   const date = p.date ? new Date(p.date).toLocaleDateString("en-GB") : "–";
   const nonAuto = p.authorship && p.authorship !== "Autograph";
   return (
@@ -489,7 +489,7 @@ function TierStrip({ rows }: { rows: GrainRow[] }) {
   return (
     <ResponsiveContainer width="100%" height={300}>
       <ScatterChart margin={{ top: 8, right: 16, bottom: 8, left: 8 }}>
-        <XAxis type="number" dataKey="x" domain={[-0.5, 2.5]} ticks={[0, 1, 2]} tickFormatter={(v: number) => TIER_LABEL[TIERS[v]]} tick={{ fontSize: 11, letterSpacing: 2 }} axisLine={false} tickLine={false} />
+        <XAxis type="number" dataKey="x" domain={[-0.5, 2.5]} ticks={[0, 1, 2]} tickFormatter={(v: number) => TIER_LABEL[TIERS[v]!]} tick={{ fontSize: 11, letterSpacing: 2 }} axisLine={false} tickLine={false} />
         <YAxis type="number" dataKey="y" scale="log" domain={["auto", "auto"]} tickFormatter={(v: number) => gbp(v)} tick={{ fontSize: 11, fontFamily: "monospace" }} width={72} axisLine={false} tickLine={false} />
         <ZAxis range={[30, 30]} />
         <Tooltip content={<LotTooltip />} />
@@ -536,9 +536,9 @@ function TierStripPanel({ rows }: { rows: GrainRow[] }) {
       <Caption rows={filtered.filter(isAutograph)} />
       <Key
         items={[
-          { colour: MEDIUM_COLOUR.Oil, label: "Oil" },
-          { colour: MEDIUM_COLOUR.Watercolour, label: "Watercolour" },
-          { colour: MEDIUM_COLOUR.Pastel, label: "Pastel/Mixed" },
+          { colour: MEDIUM_COLOUR["Oil"]!, label: "Oil" },
+          { colour: MEDIUM_COLOUR["Watercolour"]!, label: "Watercolour" },
+          { colour: MEDIUM_COLOUR["Pastel"]!, label: "Pastel/Mixed" },
           { colour: NONAUTO, label: "Non-autograph (excluded from stats)", shape: "cross" },
           { colour: "#44403c", label: "Tier median (autograph)", shape: "line" },
         ]}
@@ -626,7 +626,7 @@ function RealisationStrip({ rows }: { rows: GrainRow[] }) {
   return (
     <ResponsiveContainer width="100%" height={280}>
       <ScatterChart margin={{ top: 8, right: 16, bottom: 8, left: 8 }}>
-        <XAxis type="number" dataKey="x" domain={[-0.5, 2.5]} ticks={[0, 1, 2]} tickFormatter={(v: number) => TIER_LABEL[TIERS[v]]} tick={{ fontSize: 11, letterSpacing: 2 }} axisLine={false} tickLine={false} />
+        <XAxis type="number" dataKey="x" domain={[-0.5, 2.5]} ticks={[0, 1, 2]} tickFormatter={(v: number) => TIER_LABEL[TIERS[v]!]} tick={{ fontSize: 11, letterSpacing: 2 }} axisLine={false} tickLine={false} />
         <YAxis type="number" dataKey="y" scale="log" domain={["auto", "auto"]} tickFormatter={(v: number) => `${Number(v).toFixed(2)}x`} tick={{ fontSize: 11, fontFamily: "monospace" }} width={56} axisLine={false} tickLine={false} />
         <ZAxis range={[28, 28]} />
         <Tooltip content={<LotTooltip />} />
@@ -735,7 +735,7 @@ function SizeBandTable({ rows }: { rows: GrainRow[] }) {
 function TimeBubble({ rows }: { rows: GrainRow[] }) {
   const pts = rows
     .filter((r) => r.hammer_equiv_gbp != null && (r.hammer_equiv_gbp as number) > 0 && !!r.sale_date)
-    .map((r) => ({ t: new Date(r.sale_date).getTime(), y: r.hammer_equiv_gbp as number, size: r.longest_cm ?? 20, inzone: r.in_zone === true, ...enrich(r) }))
+    .map((r) => ({ t: new Date(r.sale_date).getTime(), y: r.hammer_equiv_gbp as number, inzone: r.in_zone === true, ...enrich(r), size: r.longest_cm ?? 20 }))
     .filter((p) => !Number.isNaN(p.t));
   if (pts.length < 3) return <p className="text-xs text-stone-500 border border-stone-200 rounded p-4">Too few dated sold lots to plot.</p>;
   const inzone = pts.filter((p) => p.inzone);

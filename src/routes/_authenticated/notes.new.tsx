@@ -10,8 +10,8 @@ export const Route = createFileRoute("/_authenticated/notes/new")({
   // note created against a name/lot carries artist_id (and entity_key) at birth,
   // instead of landing as an orphan that search_notes can't reach by entity.
   validateSearch: (s: Record<string, unknown>) => ({
-    artist: typeof s.artist === "string" ? s.artist : "",
-    entity: typeof s.entity === "string" ? s.entity : "",
+    artist: typeof s["artist"] === "string" ? (s["artist"] as string) : "",
+    entity: typeof s["entity"] === "string" ? (s["entity"] as string) : "",
   }),
   head: () => ({
     meta: [
@@ -36,7 +36,7 @@ function NewNote() {
       toast.success("Note filed");
       queryClient.invalidateQueries();
       if (vars.note.artist_id) {
-        navigate({ to: "/artists/$artistId", params: { artistId: vars.note.artist_id } });
+        navigate({ to: "/artists/$artistId", params: { artistId: vars.note.artist_id }, search: { tab: "" } });
       } else {
         navigate({ to: "/notes" });
       }

@@ -25,11 +25,11 @@ export function BookMedian({
   medianGbp: number | null | undefined;
 }) {
   if (!isPaperSleeve(artistId)) {
-    return <span className="num">{gbp(medianGbp)}</span>;
+    return <span className="num">{gbp(medianGbp ?? null)}</span>;
   }
   return (
     <span className="num inline-flex flex-wrap items-center gap-2">
-      <span className="text-muted-foreground">{gbp(medianGbp)}</span>
+      <span className="text-muted-foreground">{gbp(medianGbp ?? null)}</span>
       <Link
         to="/grain/$artist"
         params={{ artist: artistId }}

@@ -35,7 +35,7 @@ function EditNote() {
       toast.success("Note updated");
       queryClient.invalidateQueries();
       if (vars.note.artist_id) {
-        navigate({ to: "/artists/$artistId", params: { artistId: vars.note.artist_id } });
+        navigate({ to: "/artists/$artistId", params: { artistId: vars.note.artist_id }, search: { tab: "" } });
       } else {
         navigate({ to: "/register" });
       }
