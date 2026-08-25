@@ -18,7 +18,7 @@ export const Route = createFileRoute("/_authenticated/book/")({
       { name: "description", content: "Score a live lot manually against the collector fair-value discipline." },
     ],
   }),
-  component: ScoreLot,
+  component: BookScreen,
 });
 
 const inputCls = "mt-1 w-full rounded-sm border border-border bg-background px-3 py-2 text-sm num";
