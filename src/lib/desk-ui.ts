@@ -212,10 +212,11 @@ export async function commitLotClient(f: LotForm, act: CommitActuals): Promise<C
 
     // graduate the candidate row: won + links (upsert so a never-scored lot still lands)
   const wonRow = lotRowFromDecision(d, toLotInput(f), { captured_by: "manual", source_ref: sale_key });
-  await sb.from("lots").upsert(
+  const { error: gErr } = await sb.from("lots").upsert(
     { ...wonRow, status: "won", position_id, lot_note_id: note_id },
     { onConflict: "sale_key" },
   );
+  if (gErr) console.warn("lots graduation failed:", gErr.message);
 
   return { position_id, lot_note_id: note_id, all_in_gbp: all_in, over_walkaway: over };
 }
