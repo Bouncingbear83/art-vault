@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { scoreLot, type Decision, type LotInput, type ScoreBundle } from "@/lib/desk/score";
 import { loadScoreInputs } from "@/lib/desk/slices";
+import { lotRowFromDecision } from "@/lib/desk/persist";
 
 const sb = supabase as unknown as SupabaseClient;
 const num = (v: unknown): number | null => (v == null ? null : Number(v));
@@ -152,13 +153,21 @@ async function upsertLotNote(p: {
   return data.note_id as string;
 }
 
-/** Auto-log on every score: writes/overwrites the lot's verdict note. */
+/** Upsert the structured candidate row (public.lots) keyed on sale_key. */
+export async function upsertLotRow(f: LotForm, d: Decision, source_ref?: string | null): Promise<void> {
+  const row = lotRowFromDecision(d, toLotInput(f), { captured_by: "manual", source_ref: source_ref ?? null });
+  const { error } = await sb.from("lots").upsert(row, { onConflict: "sale_key" });
+  if (error) throw error;
+}
+
+/** Auto-log on every score: writes the verdict note AND the structured candidate row. */
 export async function logVerdict(f: LotForm, d: Decision): Promise<void> {
   await upsertLotNote({
     sale_key: d.lot.sale_key, artist_id: f.artist_id, decision: d.decision,
     body: verdictBody(f, d, `SCORED: ${todayISO()}.`),
     valid_to: d.vault?.valid_to ?? null, valid_from: todayISO(),
   });
+  await upsertLotRow(f, d);
 }
 
 export async function commitLotClient(f: LotForm, act: CommitActuals): Promise<CommitResult> {
@@ -201,6 +210,13 @@ export async function commitLotClient(f: LotForm, act: CommitActuals): Promise<C
     position_id = data.position_id as string;
   }
 
+    // graduate the candidate row: won + links (upsert so a never-scored lot still lands)
+  const wonRow = lotRowFromDecision(d, toLotInput(f), { captured_by: "manual", source_ref: sale_key });
+  await sb.from("lots").upsert(
+    { ...wonRow, status: "won", position_id, lot_note_id: note_id },
+    { onConflict: "sale_key" },
+  );
+
   return { position_id, lot_note_id: note_id, all_in_gbp: all_in, over_walkaway: over };
 }
 
@@ -235,6 +251,56 @@ export async function fetchDealLog(): Promise<DealLogRow[]> {
     valid_from: r.valid_from,
     source_ref: r.source_ref,
   }));
+}
+
+/* ------------------------------ candidate ledger (lots) ------------------- */
+
+export interface ScoredLotRow {
+  lot_id: string; sale_key: string; artist_id: string; artist_name: string | null;
+  title: string; decision: string | null; binding_constraint: string | null;
+  status: string; captured_by: string; fair_value_gbp: number | null;
+  ladder_firm_gbp: number | null; ladder_stretch_gbp: number | null;
+  ladder_commission_gbp: number | null; all_in_at_firm_gbp: number | null;
+  anchor_tier: string | null; anchor_rung: number | null; anchor_n: number | null;
+  anchor_confidence: string | null; subject: string | null; palette: string | null;
+  longest_cm: number | null; venue: string | null; sale_date: string | null;
+  flags: string[]; lot_note_id: string | null; source_ref: string | null;
+}
+
+const DECISION_RANK: Record<string, number> = { Buy: 0, Monitor: 1, Skip: 2 };
+
+export async function fetchScoredLots(opts?: { includeSkipped?: boolean }): Promise<ScoredLotRow[]> {
+  const statuses = opts?.includeSkipped ? ["open", "monitor", "skipped"] : ["open", "monitor"];
+  const { data, error } = await sb
+    .from("lots")
+    .select(
+      "lot_id, sale_key, artist_id, title, decision, binding_constraint, status, captured_by, fair_value_gbp, ladder_firm_gbp, ladder_stretch_gbp, ladder_commission_gbp, all_in_at_firm_gbp, anchor_tier, anchor_rung, anchor_n, anchor_confidence, subject, palette, longest_cm, venue, sale_date, flags, lot_note_id, source_ref, artists(display_name)",
+    )
+    .in("status", statuses)
+    .order("sale_date", { ascending: false })
+    .limit(200);
+  if (error) throw error;
+  type Raw = Omit<ScoredLotRow, "artist_name"> & { artists: { display_name: string | null } | null };
+  return ((data ?? []) as unknown as Raw[]).map((r) => {
+    const { artists, ...rest } = r;
+    return { ...rest, artist_name: artists?.display_name ?? rest.artist_id, flags: (rest.flags ?? []) as string[] };
+  }).sort((a, b) => (DECISION_RANK[a.decision ?? "Skip"] ?? 3) - (DECISION_RANK[b.decision ?? "Skip"] ?? 3));
+}
+
+export interface Grain360 {
+  artist_id: string; median_uk_hammer_gbp: number | null;
+  in_zone_realisation: number | null; sell_through_pct: number | null;
+}
+
+/** Safe grain columns only (present in both repo and live artist_360). */
+export async function fetchGrain360(): Promise<Record<string, Grain360>> {
+  const { data, error } = await sb
+    .from("artist_360")
+    .select("artist_id, median_uk_hammer_gbp, in_zone_realisation, sell_through_pct");
+  if (error) throw error;
+  const out: Record<string, Grain360> = {};
+  for (const r of (data ?? []) as Grain360[]) out[r.artist_id] = r;
+  return out;
 }
 
 /* ------------------------------ ledger + config reads --------------------- */
