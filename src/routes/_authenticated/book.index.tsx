@@ -1,319 +1,277 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState, type ReactNode } from "react";
+import { toast } from "sonner";
 import { AppShell } from "@/components/art/app-shell";
-import { Chip, EmptyState } from "@/components/art/primitives";
-import { fetchBook, type BookRow } from "@/lib/art360";
-import { BookMedian } from "@/components/art/book-median";
-import { GrainLink } from "@/components/art/grain-link";
+import { Chip, EmptyState, Stat } from "@/components/art/primitives";
+import { fetchArtistOptions, gbp } from "@/lib/art360";
+import {
+  AUTHORSHIPS, PALETTES, SUBJECTS, commitLotClient, emptyLot, logVerdict, scoreLotClient,
+  type CommitActuals, type LotForm,
+} from "@/lib/desk-ui";
+import type { Decision } from "@/lib/desk/score";
 
-export const Route = createFileRoute("/_authenticated/book/")({
+export const Route = createFileRoute("/_authenticated/desk/score")({
   head: () => ({
     meta: [
-      { title: "The Book — Art360" },
-      {
-        name: "description",
-        content:
-          "The whole roster on one screen, read through the three grain tests: a single verdict per name, the room number, and the size-matched spread. The raw cross-tier ratio is greyed as uncontrolled.",
-      },
-      { property: "og:title", content: "The Book — Art360" },
-      {
-        property: "og:description",
-        content: "Roster-wide comps rollup with the §H discipline applied at scale.",
-      },
+      { title: "Score a lot — Art360" },
+      { name: "description", content: "Score a live lot manually against the collector fair-value discipline." },
     ],
   }),
-  component: BookScreen,
+  component: ScoreLot,
 });
 
-/* ---------- formatting ---------- */
+const inputCls = "mt-1 w-full rounded-sm border border-border bg-background px-3 py-2 text-sm num";
 
-// Ratios (realisation, spreads) render as multiples.
-const xr = (n: number | null | undefined) => (n == null ? "—" : `${Number(n).toFixed(2)}x`);
-const pctInt = (n: number | null | undefined) => (n == null ? "—" : `${Math.round(Number(n))}%`);
-
-/* ---------- the honest verdict (§H tests 1-3) ---------- */
-//
-// The chip is the ROLLUP'S verdict, not one the app recomputes. comps_rollup
-// already runs the three tests and emits buy_edge_flag (Real / Thin / None) plus
-// thin_exit_flag (Exit_Strong depth below the n-gate). The Book only maps those
-// two fields to a label; it never re-derives edge from a raw ratio. That keeps
-// the gate logic in the rollup and the app rendering only.
-//
-//   thin_exit_flag        -> WATCH      (test 1 fails: exit anchor untrusted)
-//   buy_edge_flag Real     -> BUY        (n-gate + regional < 1.0 + matched spread survive)
-//   buy_edge_flag Thin     -> SELECTIVE  (edge not size-confirmed; chase mispriced lots only)
-//   buy_edge_flag None     -> —          (efficiently priced; no open-auction room)
-//   nothing populated      -> —          (no rollup row yet)
-
-type Verdict = "BUY" | "SELECTIVE" | "WATCH" | "—";
-
-function verdictOf(r: BookRow): { label: Verdict; why: string } {
-  const flag = r.buy_edge_flag ?? null;
-  const noData = flag == null && r.arb_edge_raw == null && r.exit_vs_regional_spread == null;
-  if (noData) return { label: "—", why: "No rollup row for this name yet." };
-  if (r.thin_exit_flag === true)
-    return {
-      label: "WATCH",
-      why: "Thin exit: Exit_Strong n below the gate, so the anchor is noise.",
-    };
-  switch (flag) {
-    case "Real":
-      return {
-        label: "BUY",
-        why: "All three tests clear: n-gate, regional realisation below 1.0, size-matched spread survives.",
-      };
-    case "Thin":
-      return {
-        label: "SELECTIVE",
-        why: "Edge present but not size-confirmed; chase individually mispriced lots, not a blanket buy.",
-      };
-    case "None":
-      return { label: "—", why: "No open-auction edge: the market prices this name efficiently." };
-    default:
-      return { label: "—", why: "No rollup verdict." };
-  }
-}
-
-const VERDICT_TONE: Record<Verdict, string> = {
-  BUY: "border-harbour bg-harbour/12 text-harbour font-semibold",
-  SELECTIVE: "border-primary text-primary",
-  WATCH: "border-primary/50 text-primary/80 border-dashed",
-  "—": "border-border text-muted-foreground",
-};
-
-const VERDICT_ORDER: Record<Verdict, number> = { BUY: 0, SELECTIVE: 1, WATCH: 2, "—": 3 };
-
-function VerdictChip({ r }: { r: BookRow }) {
-  const v = verdictOf(r);
+function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <span
-      title={v.why}
-      className={`label-caps inline-flex items-center rounded-sm border px-2 py-0.5 leading-5 ${VERDICT_TONE[v.label]}`}
-    >
-      {v.label}
-    </span>
+    <label className="block">
+      <span className="label-caps">{label}</span>
+      {children}
+    </label>
   );
 }
 
-/* ---------- room (§H test 2) ---------- */
-// in_zone_realisation is the prominent "is there room" number. Below 1.0 means
-// the in-zone work clears under estimate: room. At or above 1.0 the market
-// competes it up: no room. buy_regional_realisation (tier-independent) sits in
-// the tooltip as the strict test-2 metric behind the BUY gate.
+function ScoreLot() {
+  const qc = useQueryClient();
+  const [f, setF] = useState<LotForm>(emptyLot());
+  const [result, setResult] = useState<Decision | null>(null);
+  const set = <K extends keyof LotForm>(k: K, v: LotForm[K]) => setF((p) => ({ ...p, [k]: v }));
+  const numOrNull = (s: string): number | null => (s.trim() === "" ? null : Number(s));
 
-function RoomCell({ r }: { r: BookRow }) {
-  const room = r.in_zone_realisation;
-  const hasRoom = room != null && Number(room) < 1.0;
-  const tone = room == null ? "text-muted-foreground" : hasRoom ? "text-harbour" : "text-primary";
-  const reg = r.buy_regional_realisation;
-  const title =
-    reg == null
-      ? "In-zone realisation. Regional (tier-independent) not available."
-      : `In-zone realisation. Regional tier-independent: ${xr(reg)} ${Number(reg) < 1 ? "(room)" : "(no room)"}.`;
-  return (
-    <span className={`num ${tone}`} title={title}>
-      {xr(room)}
-    </span>
-  );
-}
+  const { data: artists } = useQuery({ queryKey: ["artist-options"], queryFn: fetchArtistOptions });
 
-/* ---------- spread (§H test 3) ---------- */
-// The size-matched spread is the honest one. Where matching lacked enough n it is
-// null: show "size check: n/a", not blank. The raw uncontrolled ratio is shown
-// only greyed and small, labelled, so it can never masquerade as the verdict.
-
-function SpreadCell({ r }: { r: BookRow }) {
-  const matched = r.matched_spread;
-  const raw = r.arb_edge_raw ?? r.exit_vs_regional_spread;
-  return (
-    <span
-      className="inline-flex flex-col leading-tight"
-      title={`Uncontrolled cross-tier ratio: ${xr(raw)}. Inflated by non-autograph junk, medium-mix, size-mix and fat tails; not a verdict.`}
-    >
-      {matched != null ? (
-        <span className="num text-foreground">
-          {xr(matched)}
-          <span className="ml-1 text-xs text-muted-foreground">(n={r.matched_n ?? 0})</span>
-        </span>
-      ) : (
-        <span className="label-caps text-muted-foreground">size check: n/a</span>
-      )}
-      <span className="label-caps text-[10px] text-muted-foreground/60">
-        raw {xr(raw)} uncontrolled
-      </span>
-    </span>
-  );
-}
-
-/* ---------- sorting ---------- */
-
-const PLAY_ORDER: Record<string, number> = { Arbitrage: 0, Quality_hold: 1, Pending: 2, NA: 3 };
-
-type SortKey = "play" | "verdict" | "room" | "spread" | "median" | "flags";
-
-// nulls always sort last regardless of direction
-const nz = (n: number | null | undefined, dir: 1 | -1) =>
-  n == null ? (dir === 1 ? Infinity : -Infinity) : Number(n);
-
-/* ---------- screen ---------- */
-
-function BookScreen() {
-  const { data, isLoading, error } = useQuery({ queryKey: ["book"], queryFn: fetchBook });
-  const [sort, setSort] = useState<SortKey>("play");
-  const rows = data ?? [];
-
-  const sorted = useMemo(() => {
-    const by = [...rows];
-    by.sort((a, b) => {
-      switch (sort) {
-        case "verdict":
-          return (
-            VERDICT_ORDER[verdictOf(a).label] - VERDICT_ORDER[verdictOf(b).label] ||
-            nz(b.median_uk_hammer_gbp, -1) - nz(a.median_uk_hammer_gbp, -1)
-          );
-        case "room": // lower realisation = more room, ascending; nulls last
-          return nz(a.in_zone_realisation, 1) - nz(b.in_zone_realisation, 1);
-        case "spread": // bigger honest spread first; nulls last
-          return nz(b.matched_spread, -1) - nz(a.matched_spread, -1);
-        case "median":
-          return nz(b.median_uk_hammer_gbp, -1) - nz(a.median_uk_hammer_gbp, -1);
-        case "flags":
-          return (b.open_flags ?? 0) - (a.open_flags ?? 0);
-        default:
-          return (
-            (PLAY_ORDER[a.play_type ?? "NA"] ?? 3) - (PLAY_ORDER[b.play_type ?? "NA"] ?? 3) ||
-            nz(b.median_uk_hammer_gbp, -1) - nz(a.median_uk_hammer_gbp, -1)
-          );
-      }
-    });
-    return by;
-  }, [rows, sort]);
-
-  const Th = ({ k, label, className = "" }: { k: SortKey; label: string; className?: string }) => (
-    <th
-      className={`label-caps cursor-pointer select-none py-2 ${className}`}
-      onClick={() => setSort(k)}
-    >
-      {label}
-      {sort === k ? " ↓" : ""}
-    </th>
-  );
+  const score = useMutation({
+    mutationFn: async () => {
+      const d = await scoreLotClient(f);
+      await logVerdict(f, d); // auto-log: verdict note + lots candidate row, deduped by sale_key
+      return d;
+    },
+    onSuccess: (d) => {
+      setResult(d);
+      qc.invalidateQueries({ queryKey: ["deal-log"] });
+      qc.invalidateQueries({ queryKey: ["scored-lots"] });
+    },
+    onError: (e: Error) => { setResult(null); toast.error(e.message); },
+  });
 
   return (
     <AppShell
-      eyebrow="Analysis"
-      title="The Book"
-      lede="Every name on one screen, read through the same three tests as the grain page: n-gate, room, and a size-matched spread. No name reads as a buy off an uncontrolled ratio."
+      eyebrow="Bid discipline"
+      title="Score a lot"
+      lede="The manual fallback: for a lot with no listing to hand Claude. Home-market anchor, bounded quality delta, per-name K_buy, hard taste and budget gates, walk-away ladder."
     >
-      {isLoading && <p className="label-caps">Loading…</p>}
-      {error && <p className="text-sm text-destructive">{(error as Error).message}</p>}
-      {!isLoading && !error && rows.length === 0 && (
-        <EmptyState
-          title="No rollup rows yet"
-          hint="Once the nightly export runs, all 30 names appear here."
-        />
-      )}
+      <div className="mb-6">
+        <Link to="/desk" className="label-caps text-harbour transition-colors hover:underline">
+          ← Candidates
+        </Link>
+      </div>
 
-      {rows.length > 0 && (
-        <>
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse text-left">
-              <thead>
-                <tr className="border-b border-border text-muted-foreground">
-                  <Th k="play" label="Artist" className="pl-1" />
-                  <th className="label-caps py-2">Play</th>
-                  <Th k="verdict" label="Verdict" />
-                  <Th k="room" label="Room (in-zone)" />
-                  <Th k="spread" label="Spread (matched)" />
-                  <Th k="median" label="Median UK oil" />
-                  <th className="label-caps py-2">Sell-thru</th>
-                  <th className="label-caps py-2">Conf.</th>
-                  <Th k="flags" label="Flags" />
-                </tr>
-              </thead>
-              <tbody>
-                {sorted.map((r) => {
-                  const flags = r.open_flags ?? 0;
-                  return (
-                    <tr
-                      key={r.artist_id}
-                      className="border-b border-border/60 align-top hover:bg-secondary/40"
-                    >
-                      <td className="py-3 pl-1">
-                        <span className="font-medium text-foreground">{r.display_name}</span>
-                        {r.dates && (
-                          <span className="ml-2 text-xs text-muted-foreground">{r.dates}</span>
-                        )}
-                        <div className="num mt-0.5 text-[11px] text-muted-foreground">
-                          oil n={r.n_uk_auto_oil ?? 0} · exit={r.n_exit_strong ?? 0} · reg=
-                          {r.n_buy_regional ?? 0}
-                        </div>
-                        <div className="mt-0.5">
-                          <GrainLink
-                            artistId={r.artist_id ?? ""}
-                            label="Grain"
-                            className="label-caps text-muted-foreground hover:text-foreground"
-                          />
-                        </div>
-                      </td>
-                      <td className="py-3">{r.play_type && <Chip>{r.play_type}</Chip>}</td>
-                      <td className="py-3">
-                        <VerdictChip r={r} />
-                      </td>
-                      <td className="num py-3">
-                        <RoomCell r={r} />
-                      </td>
-                      <td className="py-3">
-                        <SpreadCell r={r} />
-                      </td>
-                      <td className="num py-3 text-foreground">
-                        <BookMedian
-                          artistId={r.artist_id ?? ""}
-                          medianGbp={r.median_uk_hammer_gbp}
-                        />
-                      </td>
-                      <td className="num py-3 text-foreground">{pctInt(r.sell_through_pct)}</td>
-                      <td className="py-3">
-                        {r.data_confidence ? (
-                          <Chip tone="muted">{r.data_confidence}</Chip>
-                        ) : (
-                          <span className="text-muted-foreground">—</span>
-                        )}
-                      </td>
-                      <td className="num py-3">
-                        {flags > 0 ? (
-                          <span className="text-primary">{flags}</span>
-                        ) : (
-                          <span className="text-muted-foreground">0</span>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+      <div className="grid gap-8 lg:grid-cols-[1fr_1fr]">
+        {/* ---------------- form ---------------- */}
+        <form
+          className="wall-card space-y-4 p-5"
+          onSubmit={(e) => { e.preventDefault(); score.mutate(); }}
+        >
+          <Field label="Artist">
+            <select className={inputCls} value={f.artist_id} onChange={(e) => set("artist_id", e.target.value)} required>
+              <option value="">Select…</option>
+              {(artists ?? []).map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+            </select>
+          </Field>
+
+          <Field label="Title">
+            <input className={inputCls} value={f.title} onChange={(e) => set("title", e.target.value)} required />
+          </Field>
+
+          <div className="grid grid-cols-2 gap-4">
+            <Field label="Authorship">
+              <select className={inputCls} value={f.authorship} onChange={(e) => set("authorship", e.target.value)}>
+                {AUTHORSHIPS.map((x) => <option key={x} value={x}>{x}</option>)}
+              </select>
+            </Field>
+            <Field label="Longest side (cm)">
+              <input type="number" step="0.1" className={inputCls} value={f.longest_cm || ""} onChange={(e) => set("longest_cm", Number(e.target.value))} required />
+            </Field>
           </div>
 
-          <div className="mt-4 space-y-1 text-xs text-muted-foreground">
-            <p>
-              Basis: all figures autograph-only, UK, oil. Median is the autograph-oil UK
-              hammer-equivalent.
-            </p>
-            <p>
-              Verdict applies the three §H tests off the rollup's own flags: exit-strong n-gate
-              (test 1), regional realisation below 1.0 (test 2), and a size-matched tier spread
-              (test 3). BUY needs all three; SELECTIVE is edge that is not size-confirmed; WATCH is
-              a thin exit; a dash is no edge or no data.
-            </p>
-            <p>
-              The spread shown is size-matched. Where matching lacked enough n it reads "size check:
-              n/a". The raw cross-tier ratio is greyed and labelled "uncontrolled": it is inflated
-              by non-autograph junk, medium-mix, size-mix and fat tails, and is never the verdict.
-            </p>
+          <Field label="Medium (verbatim)">
+            <input className={inputCls} value={f.medium_raw} onChange={(e) => set("medium_raw", e.target.value)} />
+          </Field>
+
+          <div className="grid grid-cols-2 gap-4">
+            <Field label="Subject">
+              <select className={inputCls} value={f.subject} onChange={(e) => set("subject", e.target.value)} required>
+                <option value="">Select…</option>
+                {SUBJECTS.map((x) => <option key={x} value={x}>{x}</option>)}
+              </select>
+            </Field>
+            <Field label="Palette">
+              <select className={inputCls} value={f.palette} onChange={(e) => set("palette", e.target.value)}>
+                {PALETTES.map((x) => <option key={x} value={x}>{x}</option>)}
+              </select>
+            </Field>
           </div>
-        </>
-      )}
+
+          <div className="grid grid-cols-2 gap-4">
+            <Field label="Venue">
+              <input className={inputCls} value={f.venue} onChange={(e) => set("venue", e.target.value)} required />
+            </Field>
+            <Field label="Sale date">
+              <input type="date" className={inputCls} value={f.sale_date} onChange={(e) => set("sale_date", e.target.value)} required />
+            </Field>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <Field label="Estimate low">
+              <input type="number" className={inputCls} value={f.est_low ?? ""} onChange={(e) => set("est_low", numOrNull(e.target.value))} />
+            </Field>
+            <Field label="Estimate high">
+              <input type="number" className={inputCls} value={f.est_high ?? ""} onChange={(e) => set("est_high", numOrNull(e.target.value))} />
+            </Field>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <Field label="Quality δ (blank = 1.0)">
+              <input type="number" step="0.01" className={inputCls} value={f.quality_delta ?? ""} onChange={(e) => set("quality_delta", numOrNull(e.target.value))} />
+            </Field>
+            <Field label="δ override reason">
+              <input className={inputCls} value={f.quality_override_reason} onChange={(e) => set("quality_override_reason", e.target.value)} />
+            </Field>
+          </div>
+
+          <Field label="Condition / provenance / sale context">
+            <textarea className={inputCls} rows={2} value={f.condition} onChange={(e) => set("condition", e.target.value)} placeholder="condition notes" />
+          </Field>
+          <input className={inputCls} value={f.provenance_note} onChange={(e) => set("provenance_note", e.target.value)} placeholder="provenance note (flags a flip)" />
+          <input className={inputCls} value={f.sale_context} onChange={(e) => set("sale_context", e.target.value)} placeholder="sale context (multiples / pair)" />
+
+          <div className="flex flex-wrap gap-5 pt-1">
+            <label className="label-caps flex items-center gap-2">
+              <input type="checkbox" checked={f.strong_venue_candidate} onChange={(e) => set("strong_venue_candidate", e.target.checked)} />
+              Strong-venue candidate
+            </label>
+            <label className="label-caps flex items-center gap-2">
+              <input type="checkbox" checked={f.taste_ok} onChange={(e) => set("taste_ok", e.target.checked)} />
+              Glad to own (taste)
+            </label>
+            <label className="label-caps flex items-center gap-2">
+              <input type="checkbox" checked={f.condition_checked} onChange={(e) => set("condition_checked", e.target.checked)} />
+              Condition sighted
+            </label>
+          </div>
+
+          <button
+            type="submit"
+            disabled={score.isPending}
+            className="label-caps w-full rounded-sm border border-harbour px-4 py-2.5 text-harbour transition-colors hover:bg-harbour hover:text-background disabled:opacity-50"
+          >
+            {score.isPending ? "Scoring…" : "Score lot"}
+          </button>
+        </form>
+
+        {/* ---------------- result ---------------- */}
+        <div>
+          {!result && <EmptyState title="No lot scored yet" hint="Fill the lot in and score it. It lands on the candidate list; nothing graduates to the ledger until you record a win." />}
+          {result && <ResultPanel result={result} form={f} />}
+        </div>
+      </div>
     </AppShell>
+  );
+}
+
+function decisionTone(d: Decision["decision"]): "harbour" | "ochre" | "muted" {
+  return d === "Buy" ? "harbour" : d === "Monitor" ? "ochre" : "muted";
+}
+
+function ResultPanel({ result, form }: { result: Decision; form: LotForm }) {
+  const a = result.anchor;
+  const l = result.ladder;
+  return (
+    <div className="space-y-6">
+      <div className="wall-card space-y-4 p-5">
+        <div className="flex items-center justify-between gap-3">
+          <Chip tone={decisionTone(result.decision)} className="text-sm">{result.decision}</Chip>
+          {result.binding_constraint && <span className="label-caps text-muted-foreground">{result.binding_constraint}</span>}
+        </div>
+        <p className="text-sm leading-relaxed text-foreground">{result.rationale}</p>
+
+        <div className="grid grid-cols-2 gap-4 border-t border-border pt-4 sm:grid-cols-4">
+          <Stat label="Firm" value={gbp(l.firm)} tone="harbour" />
+          <Stat label="Stretch" value={gbp(l.stretch)} />
+          <Stat label="All-in @ firm" value={gbp(result.all_in_at_firm)} />
+          <Stat label="Commission" value={gbp(l.commission)} />
+        </div>
+      </div>
+
+      <div className="wall-card space-y-4 p-5">
+        <p className="label-caps">Anchor</p>
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+          <Stat label="Fair value" value={gbp(a.fair_value)} tone="ochre" />
+          <Stat label="Tier" value={a.tier ?? "—"} />
+          <Stat label="Rung / n" value={`${a.rung} / ${a.n}`} />
+          <Stat label="Confidence" value={a.confidence ?? "—"} />
+          <Stat label="IQR" value={a.iqr ? `${gbp(a.iqr[0])}–${gbp(a.iqr[1])}` : "—"} />
+          <Stat label="Range" value={a.comp_range ? `${gbp(a.comp_range[0])}–${gbp(a.comp_range[1])}` : "—"} />
+        </div>
+        <div className="grid grid-cols-2 gap-4 border-t border-border pt-4 sm:grid-cols-4">
+          <Stat label="Quality δ" value={String(result.quality_delta.value)} />
+          <Stat label="δ bound" value={result.quality_delta.bound ? `${result.quality_delta.bound[0]}–${result.quality_delta.bound[1]}` : "—"} />
+          <Stat label="K_buy" value={String(result.K_buy)} />
+          <Stat label="Gates" value={`${result.taste_ok ? "taste✓" : "taste✗"} ${result.budget_ok ? "budget✓" : "budget✗"}`} />
+        </div>
+        {result.flags.length > 0 && (
+          <div className="flex flex-wrap gap-2 border-t border-border pt-4">
+            {result.flags.map((fl) => <Chip key={fl} tone="muted">{fl}</Chip>)}
+          </div>
+        )}
+      </div>
+
+      {result.decision !== "Skip" && <CommitPanel result={result} form={form} />}
+    </div>
+  );
+}
+
+function CommitPanel({ result, form }: { result: Decision; form: LotForm }) {
+  const qc = useQueryClient();
+  const [act, setAct] = useState<CommitActuals>({
+    hammer_paid_gbp: result.ladder.firm ?? 0, house: form.venue, condition_status: "", buy_date: "", rationale: "",
+  });
+  const commit = useMutation({
+    mutationFn: () => commitLotClient(form, act),
+    onSuccess: (r) => {
+      toast.success(`Committed. All-in ${gbp(r.all_in_gbp)}.${r.over_walkaway ? " Paid above firm." : ""}`);
+      qc.invalidateQueries({ queryKey: ["positions"] });
+      qc.invalidateQueries({ queryKey: ["desk-budget"] });
+      qc.invalidateQueries({ queryKey: ["scored-lots"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  return (
+    <div className="wall-card space-y-4 p-5">
+      <p className="label-caps">Record a win</p>
+      <div className="grid grid-cols-2 gap-4">
+        <label className="block">
+          <span className="label-caps">Hammer paid</span>
+          <input type="number" className={inputCls} value={act.hammer_paid_gbp || ""} onChange={(e) => setAct((p) => ({ ...p, hammer_paid_gbp: Number(e.target.value) }))} />
+        </label>
+        <label className="block">
+          <span className="label-caps">House</span>
+          <input className={inputCls} value={act.house} onChange={(e) => setAct((p) => ({ ...p, house: e.target.value }))} />
+        </label>
+      </div>
+      <input className={inputCls} value={act.condition_status} onChange={(e) => setAct((p) => ({ ...p, condition_status: e.target.value }))} placeholder="condition as bought" />
+      <button
+        onClick={() => commit.mutate()}
+        disabled={commit.isPending || !act.hammer_paid_gbp}
+        className="label-caps w-full rounded-sm border border-border px-4 py-2.5 transition-colors hover:border-harbour hover:text-harbour disabled:opacity-50"
+      >
+        {commit.isPending ? "Committing…" : "Commit to ledger"}
+      </button>
+      <p className="text-xs text-muted-foreground">
+        Writes a Lot note and a position; the budget updates automatically. <Link to="/positions" className="text-harbour">View positions →</Link>
+      </p>
+    </div>
   );
 }
