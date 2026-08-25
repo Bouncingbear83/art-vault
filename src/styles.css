@@ -46,6 +46,14 @@
   --color-p2: var(--p2);
   --color-p3: var(--p3);
   --color-rule: var(--rule);
+
+  /* roster-surface (The Book) triage palette */
+  --color-teal: var(--teal);
+  --color-ochre: var(--ochre);
+  --color-sienna: var(--sienna);
+  --color-slate: var(--slate);
+  --color-faint: var(--faint);
+  --color-panel2: var(--panel2);
 }
 
 :root {
@@ -91,6 +99,14 @@
   --p1: oklch(0.478 0.128 38);
   --p2: oklch(0.665 0.126 68);
   --p3: oklch(0.567 0.021 226);
+
+  /* triage lights */
+  --teal: #2f6b5e;
+  --ochre: #bd8624;
+  --sienna: #a5533a;
+  --slate: #6d7178;
+  --faint: #b4ab9c;
+  --panel2: #ede4d6;
 }
 
 .dark {
