@@ -11,7 +11,7 @@ import {
 } from "@/lib/desk-ui";
 import type { Decision } from "@/lib/desk/score";
 
-export const Route = createFileRoute("/_authenticated/desk/score")({
+export const Route = createFileRoute("/_authenticated/book/")({
   head: () => ({
     meta: [
       { title: "Score a lot — Art360" },
