@@ -1,9 +1,9 @@
 // Repeat-sale / flip tracker: tracks an individual physical work across its
 // auction appearances, to surface re-offers (same room, re-listed) and flips
-// (bought regional, resold strong). Descriptive only: no timing-as-signal and
-// no forward projection (that thesis is falsified). This is auction-comp repeat
-// detection, NOT the owned-position ledger (owned flips live in the Positions
-// tab).
+// (bought regional, resold strong). Descriptive only: dates and elapsed spans
+// are historical, not a timing signal, and no trend is fitted or projected
+// (that thesis is falsified). This is auction-comp repeat detection, NOT the
+// owned-position ledger (owned flips live in the Positions tab).
 //
 // Linkage key is the sheet's `ref` (fallback `auto_ref`):
 //     Artist | norm-title | bucketed-size | Medium_Class
@@ -15,6 +15,7 @@
 // a move. A flip needs BOTH legs sold, a tier-up AND a hammer gain, so an
 // unsold lot coming back can never read as a flip.
 
+import { Fragment, useState } from "react";
 import { type GrainRow, gbp, isAutograph, TIER_DOT, TIER_LABEL } from "@/components/grain/grain-panels";
 
 type Read = "FLIP" | "MOVED" | "RE-OFFER";
@@ -36,6 +37,26 @@ const dateNum = (d?: string | null): number => {
   if (!d) return NaN;
   const t = new Date(d).getTime();
   return Number.isNaN(t) ? NaN : t;
+};
+
+// Historical description only (dates and elapsed spans), never a timing signal.
+const spanLabel = (ms: number): string => {
+  if (!Number.isFinite(ms) || ms <= 0) return "same sale";
+  const days = ms / 86_400_000;
+  if (days < 31) return `${Math.round(days)}d`;
+  const months = days / 30.44;
+  if (months < 12) return `${Math.round(months)}mo`;
+  return `${(days / 365.25).toFixed(1)}y`;
+};
+const ymShort = (d?: string | null): string => {
+  const n = dateNum(d);
+  if (Number.isNaN(n)) return "?";
+  return new Date(n).toLocaleDateString("en-GB", { month: "short", year: "numeric" });
+};
+const fullDate = (d?: string | null): string => {
+  const n = dateNum(d);
+  if (Number.isNaN(n)) return "undated";
+  return new Date(n).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 };
 
 // compress a tier sequence, dropping consecutive repeats: e.g.
@@ -181,26 +202,37 @@ function ReadBadge({ read }: { read: Read }) {
   );
 }
 
+interface Leg {
+  sold: boolean;
+  label: string; // hover detail: date, venue, tier, price / bought in
+}
+
 // One glyph per appearance in date order: filled teal = sold, hollow = bought
-// in. This carries the signal a sold-only sparkline cannot on illiquid names:
-// "seen three times, cleared once" reads at a glance.
-function AppearanceStrip({ legs }: { legs: boolean[] }) {
+// in. Each dot carries a hover tooltip as a convenience, but the full ladder
+// (expand the row) is the primary, touch-friendly detail surface.
+function AppearanceStrip({ legs }: { legs: Leg[] }) {
   const r = 3.2;
   const gap = 11;
-  const pad = 4;
-  const h = 12;
+  const pad = 7;
+  const h = 14;
   const w = pad * 2 + Math.max(0, legs.length - 1) * gap;
   return (
     <svg width={Math.max(w, pad * 2 + r * 2)} height={h} role="img" aria-label="appearances in date order, filled = sold">
       {legs.length > 1 && (
         <line x1={pad} y1={h / 2} x2={pad + (legs.length - 1) * gap} y2={h / 2} stroke="#e7e5e4" strokeWidth="1" />
       )}
-      {legs.map((sold, i) => {
+      {legs.map((leg, i) => {
         const cx = pad + i * gap;
-        return sold ? (
-          <circle key={i} cx={cx} cy={h / 2} r={r} fill="#1f5f5b" />
-        ) : (
-          <circle key={i} cx={cx} cy={h / 2} r={r - 0.5} fill="#faf9f7" stroke="#a8a29e" strokeWidth="1" />
+        return (
+          <g key={i}>
+            <title>{leg.label}</title>
+            <circle cx={cx} cy={h / 2} r={6} fill="transparent" />
+            {leg.sold ? (
+              <circle cx={cx} cy={h / 2} r={r} fill="#1f5f5b" />
+            ) : (
+              <circle cx={cx} cy={h / 2} r={r - 0.5} fill="#faf9f7" stroke="#a8a29e" strokeWidth="1" />
+            )}
+          </g>
         );
       })}
     </svg>
@@ -229,9 +261,76 @@ function RealisedCell({ g }: { g: Group }) {
   );
 }
 
+// Full appearance ladder, revealed on expand. Every leg in date order with its
+// date / venue / tier / price, and between legs the elapsed time and the step
+// price change. This is the pricing journey and the "2 months or 10 years"
+// answer, made visible without relying on hover.
+function Ladder({ g }: { g: Group }) {
+  return (
+    <div className="rounded border border-stone-200 bg-white p-3">
+      <div className="mb-2 text-[11px] tracking-widest text-stone-500">
+        APPEARANCE LADDER · {ymShort(g.rows[0]?.sale_date ?? null)} → {ymShort(g.rows[g.rows.length - 1]?.sale_date ?? null)} ·{" "}
+        {spanLabel(dateNum(g.rows[g.rows.length - 1]?.sale_date ?? null) - dateNum(g.rows[0]?.sale_date ?? null))} span
+      </div>
+      <div className="flex flex-col">
+        {g.rows.map((r, i) => {
+          const prev = i > 0 ? g.rows[i - 1] ?? null : null;
+          const gap = prev ? spanLabel(dateNum(r.sale_date) - dateNum(prev.sale_date)) : null;
+          const bothSold = !!prev && isSold(prev) && isSold(r);
+          const stepPct =
+            bothSold && prev && (prev.hammer_equiv_gbp as number) > 0
+              ? (((r.hammer_equiv_gbp as number) - (prev.hammer_equiv_gbp as number)) /
+                  (prev.hammer_equiv_gbp as number)) *
+                100
+              : null;
+          const up = stepPct != null && stepPct >= 0;
+          return (
+            <Fragment key={i}>
+              {gap && (
+                <div className="flex items-center gap-2 py-0.5 pl-1 text-[11px] text-stone-400">
+                  <span className="inline-block w-3 text-center">↓</span>
+                  <span className="font-mono">{gap}</span>
+                  {stepPct != null && (
+                    <span className={`font-mono ${up ? "text-teal-800" : "text-amber-700"}`}>
+                      {stepPct >= 0 ? "+" : ""}
+                      {stepPct.toFixed(0)}%
+                    </span>
+                  )}
+                </div>
+              )}
+              <div className="flex items-baseline gap-3 py-1">
+                <span className="w-28 shrink-0 font-mono text-xs text-stone-600">{fullDate(r.sale_date)}</span>
+                <span className="flex w-32 shrink-0 items-center gap-1.5 text-xs text-stone-600">
+                  <span
+                    className="inline-block h-2 w-2 shrink-0 rounded-full"
+                    style={{ background: tierColour(r.vtype_resolved) }}
+                  />
+                  {tierText(r.vtype_resolved)}
+                </span>
+                <span className="flex-1 truncate text-xs text-stone-500">{venueLabel(r) ?? "?"}</span>
+                <span className={`w-20 shrink-0 text-right font-mono text-xs ${isSold(r) ? "text-stone-800" : "text-stone-400"}`}>
+                  {isSold(r) ? gbp(r.hammer_equiv_gbp) : "bought in"}
+                </span>
+              </div>
+            </Fragment>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export function RepeatPanel({ rows, medium }: { rows: GrainRow[]; medium: "Oil" | "Watercolour" }) {
   const scoped = rows.filter((r) => r.medium_class === medium);
   const groups = buildRepeatGroups(scoped);
+  const [open, setOpen] = useState<Set<string>>(new Set());
+  const toggle = (k: string) =>
+    setOpen((prev) => {
+      const next = new Set(prev);
+      if (next.has(k)) next.delete(k);
+      else next.add(k);
+      return next;
+    });
 
   const counts = groups.reduce(
     (acc, g) => {
@@ -270,6 +369,7 @@ export function RepeatPanel({ rows, medium }: { rows: GrainRow[]; medium: "Oil" 
               <ReadBadge read="RE-OFFER" />
               <span className="font-mono text-xs text-stone-500">{counts["RE-OFFER"]}</span>
             </span>
+            <span className="ml-auto text-[11px] text-stone-400">tap a work for its full ladder</span>
           </div>
 
           <div className="overflow-x-auto">
@@ -285,44 +385,81 @@ export function RepeatPanel({ rows, medium }: { rows: GrainRow[]; medium: "Oil" 
               </thead>
               <tbody>
                 {shown.map((g) => {
-                  const legs = g.rows.map((r) => isSold(r));
+                  const legs: Leg[] = g.rows.map((r) => ({
+                    sold: isSold(r),
+                    label: `${ymShort(r.sale_date)} · ${venueLabel(r) ?? "?"} · ${tierText(r.vtype_resolved)} · ${
+                      isSold(r) ? gbp(r.hammer_equiv_gbp) : "bought in"
+                    }`,
+                  }));
+                  const firstDate = g.rows[0]?.sale_date ?? null;
+                  const lastDate = g.rows[g.rows.length - 1]?.sale_date ?? null;
+                  const span = spanLabel(dateNum(lastDate) - dateNum(firstDate));
                   const lastTier = g.tierPath[g.tierPath.length - 1];
+                  const isOpen = open.has(g.key);
                   return (
-                    <tr key={g.key} className="border-b border-stone-100 align-top">
-                      <td className="max-w-[320px] py-2 pr-4">
-                        <div className="break-words text-stone-800">{g.title}</div>
-                        <div className="mt-0.5 font-mono text-[11px] text-stone-400">
-                          {g.appearances} appearances · {g.soldLegs.length} sold
-                          {g.corpusSeen > g.appearances ? ` · +${g.corpusSeen - g.appearances} elsewhere` : ""}
-                        </div>
-                      </td>
-                      <td className="py-2 pt-3">
-                        <AppearanceStrip legs={legs} />
-                      </td>
-                      <td className="whitespace-nowrap py-2 text-right font-mono">
-                        <RealisedCell g={g} />
-                      </td>
-                      <td className="py-2 pl-6">
-                        <div className="flex items-center gap-1.5 text-xs text-stone-600">
-                          <span
-                            className="inline-block h-2 w-2 shrink-0 rounded-full"
-                            style={{ background: tierColour(lastTier) }}
-                          />
-                          {compressTiers(g.tierPath)}
-                        </div>
-                        <div className="mt-0.5 text-[11px] text-stone-400">{g.venues.join(" → ")}</div>
-                      </td>
-                      <td className="py-2 text-right">
-                        <div className="flex flex-col items-end gap-1">
-                          <ReadBadge read={g.read} />
-                          {g.read === "MOVED" && g.hasUnsoldLeg && (
-                            <span className="inline-block whitespace-nowrap rounded border border-stone-300 px-1.5 py-0.5 text-[10px] tracking-widest text-stone-400">
-                              UNSOLD LEG
+                    <Fragment key={g.key}>
+                      <tr className="border-b border-stone-100 align-top">
+                        <td className="max-w-[340px] py-2 pr-4">
+                          <button
+                            type="button"
+                            onClick={() => toggle(g.key)}
+                            aria-expanded={isOpen}
+                            className="flex items-start gap-1.5 text-left hover:opacity-80"
+                          >
+                            <svg
+                              viewBox="0 0 12 12"
+                              aria-hidden="true"
+                              className={`mt-1 h-3 w-3 shrink-0 text-stone-400 transition-transform ${isOpen ? "rotate-90" : ""}`}
+                            >
+                              <path d="M4 2 L8 6 L4 10" fill="none" stroke="currentColor" strokeWidth="1.5" />
+                            </svg>
+                            <span>
+                              <span className="block break-words text-stone-800">{g.title}</span>
+                              <span className="mt-0.5 block font-mono text-[11px] text-stone-400">
+                                {g.appearances} appearances · {g.soldLegs.length} sold
+                                {g.corpusSeen > g.appearances ? ` · +${g.corpusSeen - g.appearances} elsewhere` : ""}
+                              </span>
                             </span>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
+                          </button>
+                        </td>
+                        <td className="py-2 pt-3">
+                          <AppearanceStrip legs={legs} />
+                          <div className="mt-1 whitespace-nowrap font-mono text-[11px] text-stone-400">
+                            {ymShort(firstDate)} → {ymShort(lastDate)} · {span}
+                          </div>
+                        </td>
+                        <td className="whitespace-nowrap py-2 text-right font-mono">
+                          <RealisedCell g={g} />
+                        </td>
+                        <td className="py-2 pl-6">
+                          <div className="flex items-center gap-1.5 text-xs text-stone-600">
+                            <span
+                              className="inline-block h-2 w-2 shrink-0 rounded-full"
+                              style={{ background: tierColour(lastTier) }}
+                            />
+                            {compressTiers(g.tierPath)}
+                          </div>
+                          <div className="mt-0.5 text-[11px] text-stone-400">{g.venues.join(" → ")}</div>
+                        </td>
+                        <td className="py-2 text-right">
+                          <div className="flex flex-col items-end gap-1">
+                            <ReadBadge read={g.read} />
+                            {g.read === "MOVED" && g.hasUnsoldLeg && (
+                              <span className="inline-block whitespace-nowrap rounded border border-stone-300 px-1.5 py-0.5 text-[10px] tracking-widest text-stone-400">
+                                UNSOLD LEG
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                      {isOpen && (
+                        <tr className="border-b border-stone-100">
+                          <td colSpan={5} className="px-4 pb-3 pl-9">
+                            <Ladder g={g} />
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
                   );
                 })}
               </tbody>
@@ -351,10 +488,11 @@ export function RepeatPanel({ rows, medium }: { rows: GrainRow[]; medium: "Oil" 
           )}
 
           <p className="mt-1 text-xs text-stone-500">
-            Descriptive only, no forward projection. FLIP needs both legs sold with a tier-up and a
-            hammer gain; an unsold lot coming back is never a flip. Grouping is UK autograph
-            non-duplicate on the sheet ref key; corpus-wide siblings (foreign, non-autograph) show as
-            "+n elsewhere". This is auction-comp repeat detection, not the owned-position ledger.
+            Descriptive only: dates and spans are historical, not a timing signal, and no trend is
+            fitted or projected. FLIP needs both legs sold with a tier-up and a hammer gain; an unsold
+            lot coming back is never a flip. Grouping is UK autograph non-duplicate on the sheet ref
+            key; corpus-wide siblings (foreign, non-autograph) show as "+n elsewhere". This is
+            auction-comp repeat detection, not the owned-position ledger.
           </p>
         </>
       )}
