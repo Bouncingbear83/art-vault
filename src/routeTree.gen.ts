@@ -16,6 +16,7 @@ import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]
 import { Route as Char91DotwellKnownChar93OauthAuthorizationServerRouteImport } from './routes/[.well-known]/oauth-authorization-server'
 import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
 import { Route as AuthenticatedRegisterRouteImport } from './routes/_authenticated/register'
+import { Route as GrainArtistRouteImport } from './routes/grain.$artist'
 import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
 import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
 import { Route as Char91DotwellKnownChar93OauthAuthorizationServerMcpRouteImport } from './routes/[.well-known]/oauth-authorization-server.mcp'
@@ -26,6 +27,7 @@ import { Route as AuthenticatedBookIndexRouteImport } from './routes/_authentica
 import { Route as AuthenticatedDeskIndexRouteImport } from './routes/_authenticated/desk/index'
 import { Route as AuthenticatedDeskLogRouteImport } from './routes/_authenticated/desk/log'
 import { Route as AuthenticatedDeskParamsRouteImport } from './routes/_authenticated/desk/params'
+import { Route as AuthenticatedDeskScoreRouteImport } from './routes/_authenticated/desk/score'
 import { Route as AuthenticatedNotesIndexRouteImport } from './routes/_authenticated/notes.index'
 import { Route as AuthenticatedNotesNewRouteImport } from './routes/_authenticated/notes.new'
 import { Route as AuthenticatedPositionsIndexRouteImport } from './routes/_authenticated/positions.index'
@@ -68,6 +70,11 @@ const AuthenticatedRegisterRoute = AuthenticatedRegisterRouteImport.update({
   id: '/register',
   path: '/register',
   getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const GrainArtistRoute = GrainArtistRouteImport.update({
+  id: '/grain/$artist',
+  path: '/grain/$artist',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const DotlovableOauthConsentRoute = DotlovableOauthConsentRouteImport.update({
   id: '/.lovable/oauth/consent',
@@ -124,6 +131,11 @@ const AuthenticatedDeskParamsRoute = AuthenticatedDeskParamsRouteImport.update({
   path: '/desk/params',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedDeskScoreRoute = AuthenticatedDeskScoreRouteImport.update({
+  id: '/desk/score',
+  path: '/desk/score',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedNotesIndexRoute = AuthenticatedNotesIndexRouteImport.update({
   id: '/notes/',
   path: '/notes/',
@@ -159,6 +171,7 @@ export interface FileRoutesByFullPath {
   '/.well-known/oauth-authorization-server': typeof Char91DotwellKnownChar93OauthAuthorizationServerRouteWithChildren
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRouteWithChildren
   '/register': typeof AuthenticatedRegisterRoute
+  '/grain/$artist': typeof GrainArtistRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/.well-known/oauth-authorization-server/mcp': typeof Char91DotwellKnownChar93OauthAuthorizationServerMcpRoute
@@ -166,6 +179,7 @@ export interface FileRoutesByFullPath {
   '/artists/$artistId': typeof AuthenticatedArtistsArtistIdRoute
   '/desk/log': typeof AuthenticatedDeskLogRoute
   '/desk/params': typeof AuthenticatedDeskParamsRoute
+  '/desk/score': typeof AuthenticatedDeskScoreRoute
   '/notes/new': typeof AuthenticatedNotesNewRoute
   '/api/public/comps': typeof ApiPublicCompsRoute
   '/artists/': typeof AuthenticatedArtistsIndexRoute
@@ -182,6 +196,7 @@ export interface FileRoutesByTo {
   '/.well-known/oauth-authorization-server': typeof Char91DotwellKnownChar93OauthAuthorizationServerRouteWithChildren
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRouteWithChildren
   '/register': typeof AuthenticatedRegisterRoute
+  '/grain/$artist': typeof GrainArtistRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/.well-known/oauth-authorization-server/mcp': typeof Char91DotwellKnownChar93OauthAuthorizationServerMcpRoute
@@ -189,6 +204,7 @@ export interface FileRoutesByTo {
   '/artists/$artistId': typeof AuthenticatedArtistsArtistIdRoute
   '/desk/log': typeof AuthenticatedDeskLogRoute
   '/desk/params': typeof AuthenticatedDeskParamsRoute
+  '/desk/score': typeof AuthenticatedDeskScoreRoute
   '/notes/new': typeof AuthenticatedNotesNewRoute
   '/api/public/comps': typeof ApiPublicCompsRoute
   '/artists': typeof AuthenticatedArtistsIndexRoute
@@ -207,6 +223,7 @@ export interface FileRoutesById {
   '/.well-known/oauth-authorization-server': typeof Char91DotwellKnownChar93OauthAuthorizationServerRouteWithChildren
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRouteWithChildren
   '/_authenticated/register': typeof AuthenticatedRegisterRoute
+  '/grain/$artist': typeof GrainArtistRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/.well-known/oauth-authorization-server/mcp': typeof Char91DotwellKnownChar93OauthAuthorizationServerMcpRoute
@@ -214,6 +231,7 @@ export interface FileRoutesById {
   '/_authenticated/artists/$artistId': typeof AuthenticatedArtistsArtistIdRoute
   '/_authenticated/desk/log': typeof AuthenticatedDeskLogRoute
   '/_authenticated/desk/params': typeof AuthenticatedDeskParamsRoute
+  '/_authenticated/desk/score': typeof AuthenticatedDeskScoreRoute
   '/_authenticated/notes/new': typeof AuthenticatedNotesNewRoute
   '/api/public/comps': typeof ApiPublicCompsRoute
   '/_authenticated/artists/': typeof AuthenticatedArtistsIndexRoute
@@ -232,6 +250,7 @@ export interface FileRouteTypes {
     | '/.well-known/oauth-authorization-server'
     | '/.well-known/oauth-protected-resource'
     | '/register'
+    | '/grain/$artist'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
     | '/.well-known/oauth-authorization-server/mcp'
@@ -239,6 +258,7 @@ export interface FileRouteTypes {
     | '/artists/$artistId'
     | '/desk/log'
     | '/desk/params'
+    | '/desk/score'
     | '/notes/new'
     | '/api/public/comps'
     | '/artists/'
@@ -255,6 +275,7 @@ export interface FileRouteTypes {
     | '/.well-known/oauth-authorization-server'
     | '/.well-known/oauth-protected-resource'
     | '/register'
+    | '/grain/$artist'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
     | '/.well-known/oauth-authorization-server/mcp'
@@ -262,6 +283,7 @@ export interface FileRouteTypes {
     | '/artists/$artistId'
     | '/desk/log'
     | '/desk/params'
+    | '/desk/score'
     | '/notes/new'
     | '/api/public/comps'
     | '/artists'
@@ -279,6 +301,7 @@ export interface FileRouteTypes {
     | '/.well-known/oauth-authorization-server'
     | '/.well-known/oauth-protected-resource'
     | '/_authenticated/register'
+    | '/grain/$artist'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
     | '/.well-known/oauth-authorization-server/mcp'
@@ -286,6 +309,7 @@ export interface FileRouteTypes {
     | '/_authenticated/artists/$artistId'
     | '/_authenticated/desk/log'
     | '/_authenticated/desk/params'
+    | '/_authenticated/desk/score'
     | '/_authenticated/notes/new'
     | '/api/public/comps'
     | '/_authenticated/artists/'
@@ -303,6 +327,7 @@ export interface RootRouteChildren {
   Char91DotmcpChar93ListToolsRoute: typeof Char91DotmcpChar93ListToolsRoute
   Char91DotwellKnownChar93OauthAuthorizationServerRoute: typeof Char91DotwellKnownChar93OauthAuthorizationServerRouteWithChildren
   Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRouteWithChildren
+  GrainArtistRoute: typeof GrainArtistRoute
   DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
   Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
   ApiPublicCompsRoute: typeof ApiPublicCompsRoute
@@ -358,6 +383,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/register'
       preLoaderRoute: typeof AuthenticatedRegisterRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/grain/$artist': {
+      id: '/grain/$artist'
+      path: '/grain/$artist'
+      fullPath: '/grain/$artist'
+      preLoaderRoute: typeof GrainArtistRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/.lovable/oauth/consent': {
       id: '/.lovable/oauth/consent'
@@ -429,6 +461,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDeskParamsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/desk/score': {
+      id: '/_authenticated/desk/score'
+      path: '/desk/score'
+      fullPath: '/desk/score'
+      preLoaderRoute: typeof AuthenticatedDeskScoreRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/notes/': {
       id: '/_authenticated/notes/'
       path: '/notes'
@@ -472,6 +511,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedArtistsArtistIdRoute: typeof AuthenticatedArtistsArtistIdRoute
   AuthenticatedDeskLogRoute: typeof AuthenticatedDeskLogRoute
   AuthenticatedDeskParamsRoute: typeof AuthenticatedDeskParamsRoute
+  AuthenticatedDeskScoreRoute: typeof AuthenticatedDeskScoreRoute
   AuthenticatedNotesNewRoute: typeof AuthenticatedNotesNewRoute
   AuthenticatedArtistsIndexRoute: typeof AuthenticatedArtistsIndexRoute
   AuthenticatedBookIndexRoute: typeof AuthenticatedBookIndexRoute
@@ -486,6 +526,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedArtistsArtistIdRoute: AuthenticatedArtistsArtistIdRoute,
   AuthenticatedDeskLogRoute: AuthenticatedDeskLogRoute,
   AuthenticatedDeskParamsRoute: AuthenticatedDeskParamsRoute,
+  AuthenticatedDeskScoreRoute: AuthenticatedDeskScoreRoute,
   AuthenticatedNotesNewRoute: AuthenticatedNotesNewRoute,
   AuthenticatedArtistsIndexRoute: AuthenticatedArtistsIndexRoute,
   AuthenticatedBookIndexRoute: AuthenticatedBookIndexRoute,
@@ -537,6 +578,7 @@ const rootRouteChildren: RootRouteChildren = {
     Char91DotwellKnownChar93OauthAuthorizationServerRouteWithChildren,
   Char91DotwellKnownChar93OauthProtectedResourceRoute:
     Char91DotwellKnownChar93OauthProtectedResourceRouteWithChildren,
+  GrainArtistRoute: GrainArtistRoute,
   DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
   Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
   ApiPublicCompsRoute: ApiPublicCompsRoute,

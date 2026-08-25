@@ -362,9 +362,9 @@
       {
         "name": "score_lot",
         "title": "Score a lot (Lot Desk v0.6)",
-        "description": "Score a single auction lot against the collector fair-value discipline: rung-ladder anchor on home-market comps, bounded quality delta, per-name K_buy, hard taste + budget gates, and a walk-away ladder. Read-only; writes nothing. Returns the full decision object (Buy / Skip / Monitor with the binding constraint).",
+        "description": "Score a single auction lot against the collector fair-value discipline: rung-ladder anchor on home-market comps, bounded quality delta, per-name K_buy, hard taste + budget gates, and a walk-away ladder. Returns the full decision object (Buy / Skip / Monitor with the binding constraint). By default it also writes the lot to the candidate ledger (public.lots), keyed on sale_key, so it surfaces on the Lot Desk beside its grain; pass persist:false for a dry-run that writes nothing.",
         "annotations": {
-          "readOnlyHint": true,
+          "readOnlyHint": false,
           "idempotentHint": true,
           "openWorldHint": false
         },
@@ -478,6 +478,14 @@
             "period_year": {
               "description": "Budget period; defaults to the sale year.",
               "type": "number"
+            },
+            "persist": {
+              "description": "Write the scored lot to the candidate ledger (default true). false = dry-run, writes nothing.",
+              "type": "boolean"
+            },
+            "source_ref": {
+              "description": "Listing URL or MutualArt dump ref, stored on the lot for provenance.",
+              "type": "string"
             }
           },
           "required": [
