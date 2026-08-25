@@ -16,9 +16,9 @@ export interface PaperSleeveEntry {
 }
 
 export const PAPER_SLEEVE: Record<string, PaperSleeveEntry> = {
-  "david-roberts": { ceiling: 3750, paperPrimary: true },
-  "arthur-melville": { ceiling: 3000, paperPrimary: true },
-  "william-wyld": { ceiling: 1000, paperPrimary: false },
+   "william-wyld": { ceiling: 1000, paperPrimary: false },
+   "david-roberts": { ceiling: 3000, paperPrimary: true },
+   "arthur-melville": { ceiling: 3750, paperPrimary: true },
 };
 
 export const paperSleeve = (artistId?: string | null): PaperSleeveEntry | null =>
