@@ -101,16 +101,18 @@ const empty: NoteFormValues = {
 
 export function NoteForm({
   initialNote,
+  prefill,
   submitLabel,
   pending,
   onSubmit,
 }: {
   initialNote?: NoteWithRelations | null;
+  prefill?: Partial<NoteFormValues>;
   submitLabel: string;
   pending: boolean;
   onSubmit: (note: NoteInput, tags: string[]) => void;
 }) {
-  const [values, setValues] = useState<NoteFormValues>(empty);
+  const [values, setValues] = useState<NoteFormValues>({ ...empty, ...prefill });
   const [artistQuery, setArtistQuery] = useState("");
   const [noteQuery, setNoteQuery] = useState("");
   const [error, setError] = useState<string | null>(null);
