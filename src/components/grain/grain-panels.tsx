@@ -785,6 +785,7 @@ function MediumLedger({ s }: { s: GrainStats }) {
 
 export function GrainPanels({ rows, artistId }: { rows: GrainRow[]; artistId: string }) {
   const sleeve = paperSleeve(artistId);
+  const paperMode = sleeve?.paperPrimary === true; // suppress oil view only for paper-primary names
   const bounds = useMemo<[number, number]>(() => yearsOf(rows) ?? [2000, new Date().getUTCFullYear()], [rows]);
   const [from, setFrom] = useState(bounds[0]);
   const [to, setTo] = useState(bounds[1]);
@@ -811,10 +812,10 @@ export function GrainPanels({ rows, artistId }: { rows: GrainRow[]; artistId: st
       ) : (
         <>
           <section>
-            {sleeve ? (
+            {paperMode ? (
               <>
                 <h2 className="text-xs tracking-widest text-stone-500 mb-2">PAPER SLEEVE: CEILING-RELATIVE READ (EXIT/REGIONAL SUPPRESSED)</h2>
-                <CeilingBar s={s} ceiling={sleeve.ceiling} />
+                <CeilingBar s={s} ceiling={sleeve!.ceiling} />
                 <p className="mt-2 text-xs text-stone-500">Exit/Regional ratio is a category error for a paper-primary name: it divides premium finished sheets by cheap regional scraps. The bar above is the number that governs the bid.</p>
                 {s.wcHasGrade && (
                   <div className="mt-4">
@@ -833,10 +834,10 @@ export function GrainPanels({ rows, artistId }: { rows: GrainRow[]; artistId: st
 
           <TierStripPanel rows={s.usableWithNonAuto} />
 
-          {sleeve ? (
+          {paperMode ? (
             <section>
               <h2 className="text-xs tracking-widest text-stone-500 mb-2">WATERCOLOUR SIZE VS PRICE (IS THE PAPER PREMIUM SIZE-DRIVEN?)</h2>
-              <PaperSizeScatter rows={s.usable} ceiling={sleeve.ceiling} />
+              <PaperSizeScatter rows={s.usable} ceiling={sleeve!.ceiling} />
               <Caption rows={wcRows.filter((r) => r.longest_cm != null && (r.longest_cm as number) > 0)} />
               <Key items={[{ colour: INZONE, label: "Finished" }, { colour: "#c8b89a", label: "Sketch/other", shape: "triangle" }, { colour: "#44403c", label: "Ceiling", shape: "dashed" }]} />
             </section>
@@ -851,11 +852,11 @@ export function GrainPanels({ rows, artistId }: { rows: GrainRow[]; artistId: st
 
           <section>
             <h2 className="text-xs tracking-widest text-stone-500 mb-2">
-              {sleeve ? "WATERCOLOUR" : "OIL"} PRICE OVER TIME (BUBBLE = SIZE, COLOUR = IN-ZONE)
+              {paperMode ? "WATERCOLOUR" : "OIL"} PRICE OVER TIME (BUBBLE = SIZE, COLOUR = IN-ZONE)
               <InfoDot text={TIMEBUBBLE_HELP} />
             </h2>
-            <TimeBubble rows={sleeve ? wcRows : oilRows} />
-            <Caption rows={sleeve ? wcRows : oilRows} />
+            <TimeBubble rows={paperMode ? wcRows : oilRows} />
+            <Caption rows={paperMode ? wcRows : oilRows} />
             <Key items={[{ colour: INZONE, label: "In-zone" }, { colour: OUTZONE, label: "Out of zone" }, { colour: "#44403c", label: "Yearly median (descriptive)", shape: "line" }]} />
             <p className="mt-1 text-xs text-stone-500">Bubble = longest side. Autograph only. No trend fitted or projected (timing-as-signal is falsified).</p>
           </section>
@@ -863,8 +864,8 @@ export function GrainPanels({ rows, artistId }: { rows: GrainRow[]; artistId: st
           {/* Repeat-sale / flip tracker. Fed the year-filtered raw rows (unsold
               legs retained on purpose), not s.usable, so a bought-in lot that
               later re-lists is visible. Medium follows the page: paper for a
-              sleeve name, oil otherwise. */}
-          <RepeatPanel rows={filteredRows} medium={sleeve ? "Watercolour" : "Oil"} />
+              paper-primary sleeve name, oil otherwise. */}
+          <RepeatPanel rows={filteredRows} medium={paperMode ? "Watercolour" : "Oil"} />
 
           <section>
             <h2 className="text-xs tracking-widest text-stone-500 mb-2">MEDIAN BY MEDIUM (UK SOLD, AUTOGRAPH, PRINT EXCLUDED)</h2>
