@@ -34,7 +34,7 @@ function GrainPage() {
       const { data, error } = await supabase
         .from("comps")
         .select(
-          "artist_id, medium_class, vtype_resolved, hammer_equiv_gbp, longest_cm, status, in_zone, sale_date, sheet_grade, title, authorship, venue"
+          "artist_id, medium_class, medium_raw, vtype_resolved, hammer_equiv_gbp, longest_cm, status, in_zone, sale_date, sheet_grade, title, authorship, venue, est_mid_gbp"
         )
         .eq("artist_id", artist)
         .limit(2000);
@@ -53,8 +53,10 @@ function GrainPage() {
         <div className="text-xs tracking-widest text-stone-500">GRAIN DIAGNOSTICS</div>
         <h1 className="text-2xl mt-1">{artist.replace(/-/g, " ")}</h1>
         <p className="text-sm text-stone-500 mt-2 max-w-2xl">
-          UK sold rows only; Foreign and Print excluded. Ratios below n=8 on
-          Exit_Strong carry THIN and must not inform a bid.
+          UK sold rows only; Foreign and Print excluded. All numbers are
+          autograph only; non-autograph lots appear solely as red crosses on the
+          tier strip to catch mis-tags. Ratios below n=8 on Exit_Strong carry
+          THIN and must not inform a bid.
         </p>
       </header>
 
