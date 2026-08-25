@@ -41,6 +41,14 @@ function NotesByTag() {
       title="Notes by tag"
       lede="Every note carrying a controlled tag, across all names. Pick a tag to filter; click it again to clear."
     >
+      <div className="mb-6">
+        <Link
+          to="/notes/new"
+          className="label-caps rounded-sm border border-harbour px-4 py-2 text-harbour transition-colors hover:bg-harbour hover:text-background"
+        >
+          + New note
+        </Link>
+      </div>
       <div className="mb-6 flex flex-wrap gap-2">
         {(tags ?? []).map((t) => {
           const active = t.tag === tag;
