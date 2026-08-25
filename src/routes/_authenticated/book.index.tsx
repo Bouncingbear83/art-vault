@@ -4,6 +4,8 @@ import { useMemo, useState } from "react";
 import { AppShell } from "@/components/art/app-shell";
 import { Chip, EmptyState } from "@/components/art/primitives";
 import { fetchBook, gbp, type BookRow } from "@/lib/art360";
+import { BookMedian } from "@/components/art/book-median";
+import { GrainLink } from "@/components/art/grain-link";
 
 export const Route = createFileRoute("/_authenticated/book/")({
   head: () => ({
@@ -118,7 +120,7 @@ function BookScreen() {
       {!isLoading && !error && rows.length === 0 && (
         <EmptyState
           title="No rollup rows yet"
-          hint="Once the nightly export runs, all 19 names appear here."
+          hint="Once the nightly export runs, all 30 names appear here."
         />
       )}
 
@@ -151,9 +153,18 @@ function BookScreen() {
                         <span className="num ml-2 text-xs text-muted-foreground">
                           n={r.n_uk_auto_oil ?? 0}
                         </span>
-                      </td>
+                        <div className="mt-0.5">
+                          <GrainLink
+                          artistId={r.artist_id}
+                          label="Grain"
+                          className="label-caps text-muted-foreground hover:text-foreground"
+                        />
+                      </div>
+                    </td>
                       <td className="py-3">{r.play_type && <Chip>{r.play_type}</Chip>}</td>
-                      <td className="num py-3 text-foreground">{gbp(r.median_uk_hammer_gbp)}</td>
+                      <td className="num py-3 text-foreground">
+                        <BookMedian artistId={r.artist_id} medianGbp={r.median_uk_hammer_gbp} />
+                      </td>
                       <td
                         className={`num py-3 ${trusted ? "text-foreground" : "text-muted-foreground/60"}`}
                         title={trusted ? undefined : `Fewer than ${MIN_N} UK auto oil comps — untrusted`}
