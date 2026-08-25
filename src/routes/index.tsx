@@ -31,7 +31,7 @@ export const Route = createFileRoute("/")({
 function SignIn() {
   const navigate = useNavigate();
   const { next } = Route.useSearch();
-  const destination = next || "/register";
+  const destination = next || "/book";
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
   const [message, setMessage] = useState("");
