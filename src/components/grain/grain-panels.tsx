@@ -25,6 +25,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { paperSleeve } from "@/lib/paper-sleeve";
+import { RepeatPanel } from "@/components/grain/repeat-panel";
 
 export interface GrainRow {
   artist_id: string;
@@ -41,6 +42,13 @@ export interface GrainRow {
   authorship?: string | null;
   venue?: string | null;
   est_mid_gbp?: number | null;
+  // repeat-sale linkage (sheet-derived; see repeat-panel.tsx)
+  ref?: string | null;
+  auto_ref?: string | null;
+  times_seen?: number | null;
+  repeat_flag?: string | null;
+  venue_canonical?: string | null;
+  dup_flag?: string | null;
 }
 
 const N_GATE = 8;
@@ -49,12 +57,12 @@ const EST_FLOOR = 200; // §E: realisation lies on sub-£200 estimates; exclude 
 
 const TIERS = ["Buy_Regional", "Straddle", "Exit_Strong"] as const;
 type Tier = (typeof TIERS)[number];
-const TIER_LABEL: Record<Tier, string> = {
+export const TIER_LABEL: Record<Tier, string> = {
   Buy_Regional: "REGIONAL",
   Straddle: "STRADDLE",
   Exit_Strong: "EXIT STRONG",
 };
-const TIER_DOT: Record<Tier, string> = {
+export const TIER_DOT: Record<Tier, string> = {
   Buy_Regional: "#8a7d6b",
   Straddle: "#c2870a",
   Exit_Strong: "#1f5f5b",
@@ -88,7 +96,7 @@ const trimTop = (xs: number[], frac: number): number[] => {
   return s.slice(0, s.length - cut);
 };
 
-const gbp = (v: number | null): string =>
+export const gbp = (v: number | null): string =>
   v == null ? "–" : `£${Math.round(v).toLocaleString("en-GB")}`;
 
 const ratioFmt = (v: number | null): string => (v == null ? "–" : `${v.toFixed(2)}x`);
@@ -100,7 +108,7 @@ const yearsOf = (rows: GrainRow[]): [number, number] | null => {
   return ys.length ? [Math.min(...ys), Math.max(...ys)] : null;
 };
 
-const isAutograph = (r: GrainRow) => !r.authorship || r.authorship === "Autograph";
+export const isAutograph = (r: GrainRow) => !r.authorship || r.authorship === "Autograph";
 
 const parseSupport = (raw?: string | null): "panel" | "canvas" | null => {
   if (!raw) return null;
@@ -851,6 +859,12 @@ export function GrainPanels({ rows, artistId }: { rows: GrainRow[]; artistId: st
             <Key items={[{ colour: INZONE, label: "In-zone" }, { colour: OUTZONE, label: "Out of zone" }, { colour: "#44403c", label: "Yearly median (descriptive)", shape: "line" }]} />
             <p className="mt-1 text-xs text-stone-500">Bubble = longest side. Autograph only. No trend fitted or projected (timing-as-signal is falsified).</p>
           </section>
+
+          {/* Repeat-sale / flip tracker. Fed the year-filtered raw rows (unsold
+              legs retained on purpose), not s.usable, so a bought-in lot that
+              later re-lists is visible. Medium follows the page: paper for a
+              sleeve name, oil otherwise. */}
+          <RepeatPanel rows={filteredRows} medium={sleeve ? "Watercolour" : "Oil"} />
 
           <section>
             <h2 className="text-xs tracking-widest text-stone-500 mb-2">MEDIAN BY MEDIUM (UK SOLD, AUTOGRAPH, PRINT EXCLUDED)</h2>
