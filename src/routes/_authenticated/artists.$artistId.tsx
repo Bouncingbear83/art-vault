@@ -89,9 +89,18 @@ function ArtistPage() {
 
   return (
     <AppShell>
-      <Link to="/artists" className="label-caps hover:text-foreground">
-        ← Catalogue
-      </Link>
+      <div className="flex items-center justify-between gap-3">
+        <Link to="/book" className="label-caps hover:text-foreground">
+          ← The Book
+        </Link>
+        <Link
+          to="/notes/new"
+          search={{ artist: artistId, entity: "" }}
+          className="label-caps rounded-sm border border-harbour px-3 py-1.5 text-harbour transition-colors hover:bg-harbour hover:text-background"
+        >
+          + Note
+        </Link>
+      </div>
 
       {/* tombstone wall label */}
       <header className="mt-4 border-b border-border pb-7">
