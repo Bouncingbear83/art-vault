@@ -58,7 +58,7 @@ interface Group {
   soldLegs: GrainRow[];
   firstSold: GrainRow | null;
   lastSold: GrainRow | null;
-  deltaPct: number | null; // first sold -> last sold hammer move
+  deltaPct: number | null; // first sold -> last sold hammer move (only if 2+ sold)
   venues: string[]; // distinct canonical venues, first-seen order
   moved: boolean;
   tierPath: string[]; // vtype sequence in date order
@@ -169,44 +169,63 @@ export function buildRepeatGroups(rows: GrainRow[]): Group[] {
 // ---------- UI ----------
 
 function ReadBadge({ read }: { read: Read }) {
-  const c: Record<Read, string> =
-    {
-      FLIP: "border-teal-800 text-teal-800",
-      MOVED: "border-amber-600 text-amber-700",
-      "RE-OFFER": "border-stone-300 text-stone-500",
-    };
+  const c: Record<Read, string> = {
+    FLIP: "border-teal-800 text-teal-800",
+    MOVED: "border-amber-600 text-amber-700",
+    "RE-OFFER": "border-stone-300 text-stone-500",
+  };
   return (
-    <span className={`inline-block rounded border px-2 py-0.5 text-xs tracking-widest ${c[read]}`}>
+    <span className={`inline-block whitespace-nowrap rounded border px-2 py-0.5 text-xs tracking-widest ${c[read]}`}>
       {read}
     </span>
   );
 }
 
-// self-contained sparkline of sold-leg hammers; no recharts, degrades on n<2
-function Spark({ vals }: { vals: number[] }) {
-  if (vals.length < 2) return <span className="font-mono text-xs text-stone-300">–</span>;
-  const w = 64;
-  const h = 20;
-  const pad = 2;
-  const min = Math.min(...vals);
-  const max = Math.max(...vals);
-  const span = max - min || 1;
-  const xy = (v: number, i: number): [number, number] => [
-    pad + (i * (w - 2 * pad)) / (vals.length - 1),
-    h - pad - ((v - min) / span) * (h - 2 * pad),
-  ];
-  const first = vals[0] ?? 0;
-  const last = vals[vals.length - 1] ?? 0;
-  const stroke = last >= first ? "#1f5f5b" : "#b45309";
-  const pts = vals.map((v, i) => xy(v, i).map((n) => n.toFixed(1)).join(",")).join(" ");
+// One glyph per appearance in date order: filled teal = sold, hollow = bought
+// in. This carries the signal a sold-only sparkline cannot on illiquid names:
+// "seen three times, cleared once" reads at a glance.
+function AppearanceStrip({ legs }: { legs: boolean[] }) {
+  const r = 3.2;
+  const gap = 11;
+  const pad = 4;
+  const h = 12;
+  const w = pad * 2 + Math.max(0, legs.length - 1) * gap;
   return (
-    <svg width={w} height={h} role="img" aria-label="hammer trajectory">
-      <polyline points={pts} fill="none" stroke={stroke} strokeWidth="1.5" />
-      {vals.map((v, i) => {
-        const [cx, cy] = xy(v, i);
-        return <circle key={i} cx={cx} cy={cy} r="1.8" fill={stroke} />;
+    <svg width={Math.max(w, pad * 2 + r * 2)} height={h} role="img" aria-label="appearances in date order, filled = sold">
+      {legs.length > 1 && (
+        <line x1={pad} y1={h / 2} x2={pad + (legs.length - 1) * gap} y2={h / 2} stroke="#e7e5e4" strokeWidth="1" />
+      )}
+      {legs.map((sold, i) => {
+        const cx = pad + i * gap;
+        return sold ? (
+          <circle key={i} cx={cx} cy={h / 2} r={r} fill="#1f5f5b" />
+        ) : (
+          <circle key={i} cx={cx} cy={h / 2} r={r - 0.5} fill="#faf9f7" stroke="#a8a29e" strokeWidth="1" />
+        );
       })}
     </svg>
+  );
+}
+
+// Realised move. 0 sold = bought in; 1 sold = a single clearance (NOT a move,
+// so no "X -> X"); 2+ sold = first -> last with a coloured delta.
+function RealisedCell({ g }: { g: Group }) {
+  const n = g.soldLegs.length;
+  if (n === 0) return <span className="text-stone-400">bought in</span>;
+  if (n === 1) return <span>{gbp(g.firstSold?.hammer_equiv_gbp ?? null)}</span>;
+  const up = g.deltaPct != null && g.deltaPct >= 0;
+  return (
+    <div>
+      <div className="whitespace-nowrap">
+        {gbp(g.firstSold?.hammer_equiv_gbp ?? null)} → {gbp(g.lastSold?.hammer_equiv_gbp ?? null)}
+      </div>
+      {g.deltaPct != null && (
+        <div className={`text-[11px] ${up ? "text-teal-800" : "text-amber-700"}`}>
+          {g.deltaPct >= 0 ? "+" : ""}
+          {g.deltaPct.toFixed(0)}%
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -254,51 +273,36 @@ export function RepeatPanel({ rows, medium }: { rows: GrainRow[]; medium: "Oil" 
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full border-collapse text-left text-sm">
+            <table className="w-full min-w-[720px] border-collapse text-left text-sm">
               <thead>
                 <tr className="border-b border-stone-200 text-xs tracking-widest text-stone-500">
-                  <th className="py-2">WORK</th>
-                  <th className="py-2 text-center">N</th>
-                  <th className="py-2 text-center">TRAJECTORY</th>
-                  <th className="py-2 text-right">Δ FIRST→LAST</th>
-                  <th className="py-2">MOVE</th>
-                  <th className="py-2 text-right">READ</th>
+                  <th className="whitespace-nowrap py-2">WORK</th>
+                  <th className="whitespace-nowrap py-2">SEEN</th>
+                  <th className="whitespace-nowrap py-2 text-right">REALISED</th>
+                  <th className="whitespace-nowrap py-2 pl-6">MOVE</th>
+                  <th className="whitespace-nowrap py-2 text-right">READ</th>
                 </tr>
               </thead>
               <tbody>
                 {shown.map((g) => {
-                  const soldVals = g.soldLegs.map((r) => r.hammer_equiv_gbp as number);
-                  const dUp = g.deltaPct != null && g.deltaPct >= 0;
+                  const legs = g.rows.map((r) => isSold(r));
                   const lastTier = g.tierPath[g.tierPath.length - 1];
                   return (
                     <tr key={g.key} className="border-b border-stone-100 align-top">
-                      <td className="py-2 pr-3">
-                        <div className="text-stone-800">{g.title}</div>
+                      <td className="max-w-[320px] py-2 pr-4">
+                        <div className="break-words text-stone-800">{g.title}</div>
                         <div className="mt-0.5 font-mono text-[11px] text-stone-400">
-                          {g.appearances} appearances
-                          {g.corpusSeen > g.appearances ? ` (+${g.corpusSeen - g.appearances} elsewhere)` : ""}
-                          {g.hasUnsoldLeg ? " · unsold leg" : ""}
+                          {g.appearances} appearances · {g.soldLegs.length} sold
+                          {g.corpusSeen > g.appearances ? ` · +${g.corpusSeen - g.appearances} elsewhere` : ""}
                         </div>
                       </td>
-                      <td className="py-2 text-center font-mono">{g.appearances}</td>
-                      <td className="py-2 text-center">
-                        <span className="inline-flex justify-center">
-                          <Spark vals={soldVals} />
-                        </span>
+                      <td className="py-2 pt-3">
+                        <AppearanceStrip legs={legs} />
                       </td>
-                      <td
-                        className={`py-2 text-right font-mono ${
-                          g.deltaPct == null ? "text-stone-300" : dUp ? "text-teal-800" : "text-amber-700"
-                        }`}
-                      >
-                        {g.deltaPct == null ? "–" : `${g.deltaPct >= 0 ? "+" : ""}${g.deltaPct.toFixed(0)}%`}
-                        {g.firstSold && g.lastSold && (
-                          <div className="text-[11px] text-stone-400">
-                            {gbp(g.firstSold.hammer_equiv_gbp)} → {gbp(g.lastSold.hammer_equiv_gbp)}
-                          </div>
-                        )}
+                      <td className="whitespace-nowrap py-2 text-right font-mono">
+                        <RealisedCell g={g} />
                       </td>
-                      <td className="py-2 pr-3">
+                      <td className="py-2 pl-6">
                         <div className="flex items-center gap-1.5 text-xs text-stone-600">
                           <span
                             className="inline-block h-2 w-2 shrink-0 rounded-full"
@@ -311,8 +315,8 @@ export function RepeatPanel({ rows, medium }: { rows: GrainRow[]; medium: "Oil" 
                       <td className="py-2 text-right">
                         <div className="flex flex-col items-end gap-1">
                           <ReadBadge read={g.read} />
-                          {g.read !== "FLIP" && g.hasUnsoldLeg && (
-                            <span className="inline-block rounded border border-stone-300 px-1.5 py-0.5 text-[10px] tracking-widest text-stone-400">
+                          {g.read === "MOVED" && g.hasUnsoldLeg && (
+                            <span className="inline-block whitespace-nowrap rounded border border-stone-300 px-1.5 py-0.5 text-[10px] tracking-widest text-stone-400">
                               UNSOLD LEG
                             </span>
                           )}
@@ -325,6 +329,21 @@ export function RepeatPanel({ rows, medium }: { rows: GrainRow[]; medium: "Oil" 
             </table>
           </div>
 
+          <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-stone-500">
+            <span className="inline-flex items-center gap-1.5">
+              <svg width="10" height="10" aria-hidden="true">
+                <circle cx="5" cy="5" r="3.2" fill="#1f5f5b" />
+              </svg>
+              sold
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <svg width="10" height="10" aria-hidden="true">
+                <circle cx="5" cy="5" r="2.7" fill="#faf9f7" stroke="#a8a29e" strokeWidth="1" />
+              </svg>
+              bought in
+            </span>
+          </div>
+
           {overflow > 0 && (
             <p className="mt-1 text-[11px] text-stone-400">
               +{overflow} further repeated works not shown (sorted flips first, then by move size).
@@ -333,10 +352,9 @@ export function RepeatPanel({ rows, medium }: { rows: GrainRow[]; medium: "Oil" 
 
           <p className="mt-1 text-xs text-stone-500">
             Descriptive only, no forward projection. FLIP needs both legs sold with a tier-up and a
-            hammer gain; an unsold lot coming back is tagged UNSOLD LEG, never a flip. Grouping is UK
-            autograph non-duplicate on the sheet ref key; corpus-wide siblings (foreign,
-            non-autograph) show as "+n elsewhere". This is auction-comp repeat detection, not the
-            owned-position ledger.
+            hammer gain; an unsold lot coming back is never a flip. Grouping is UK autograph
+            non-duplicate on the sheet ref key; corpus-wide siblings (foreign, non-autograph) show as
+            "+n elsewhere". This is auction-comp repeat detection, not the owned-position ledger.
           </p>
         </>
       )}
