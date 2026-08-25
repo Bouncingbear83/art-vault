@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { AppShell } from "@/components/art/app-shell";
 import { Chip, EmptyState } from "@/components/art/primitives";
-import { fetchBook, gbp, type BookRow } from "@/lib/art360";
+import { fetchBook, type BookRow } from "@/lib/art360";
 import { BookMedian } from "@/components/art/book-median";
 import { GrainLink } from "@/components/art/grain-link";
 
@@ -14,10 +14,13 @@ export const Route = createFileRoute("/_authenticated/book/")({
       {
         name: "description",
         content:
-          "The whole roster on one screen: median UK hammer, the exit/regional spread with its trust state, sell-through, and open flags.",
+          "The whole roster on one screen, read through the three grain tests: a single verdict per name, the room number, and the size-matched spread. The raw cross-tier ratio is greyed as uncontrolled.",
       },
       { property: "og:title", content: "The Book — Art360" },
-      { property: "og:description", content: "Roster-wide comps rollup with the gate shown honestly." },
+      {
+        property: "og:description",
+        content: "Roster-wide comps rollup with the §H discipline applied at scale.",
+      },
     ],
   }),
   component: BookScreen,
@@ -25,52 +28,133 @@ export const Route = createFileRoute("/_authenticated/book/")({
 
 /* ---------- formatting ---------- */
 
-const x = (n: number | null | undefined) => (n == null ? "—" : `${Number(n).toFixed(2)}x`);
+// Ratios (realisation, spreads) render as multiples.
+const xr = (n: number | null | undefined) => (n == null ? "—" : `${Number(n).toFixed(2)}x`);
 const pctInt = (n: number | null | undefined) => (n == null ? "—" : `${Math.round(Number(n))}%`);
 
-/* ---------- gate ---------- */
+/* ---------- the honest verdict (§H tests 1-3) ---------- */
+//
+// The chip is the ROLLUP'S verdict, not one the app recomputes. comps_rollup
+// already runs the three tests and emits buy_edge_flag (Real / Thin / None) plus
+// thin_exit_flag (Exit_Strong depth below the n-gate). The Book only maps those
+// two fields to a label; it never re-derives edge from a raw ratio. That keeps
+// the gate logic in the rollup and the app rendering only.
+//
+//   thin_exit_flag        -> WATCH      (test 1 fails: exit anchor untrusted)
+//   buy_edge_flag Real     -> BUY        (n-gate + regional < 1.0 + matched spread survive)
+//   buy_edge_flag Thin     -> SELECTIVE  (edge not size-confirmed; chase mispriced lots only)
+//   buy_edge_flag None     -> —          (efficiently priced; no open-auction room)
+//   nothing populated      -> —          (no rollup row yet)
 
-// The spread only earns trust once there are enough UK auto oil comps behind it.
-const MIN_N = 8;
+type Verdict = "BUY" | "SELECTIVE" | "WATCH" | "—";
 
-function spreadTrusted(r: BookRow): boolean {
-  return r.n_uk_auto_oil != null && Number(r.n_uk_auto_oil) >= MIN_N;
+function verdictOf(r: BookRow): { label: Verdict; why: string } {
+  const flag = r.buy_edge_flag ?? null;
+  const noData = flag == null && r.arb_edge_raw == null && r.exit_vs_regional_spread == null;
+  if (noData) return { label: "—", why: "No rollup row for this name yet." };
+  if (r.thin_exit_flag === true)
+    return {
+      label: "WATCH",
+      why: "Thin exit: Exit_Strong n below the gate, so the anchor is noise.",
+    };
+  switch (flag) {
+    case "Real":
+      return {
+        label: "BUY",
+        why: "All three tests clear: n-gate, regional realisation below 1.0, size-matched spread survives.",
+      };
+    case "Thin":
+      return {
+        label: "SELECTIVE",
+        why: "Edge present but not size-confirmed; chase individually mispriced lots, not a blanket buy.",
+      };
+    case "None":
+      return { label: "—", why: "No open-auction edge: the market prices this name efficiently." };
+    default:
+      return { label: "—", why: "No rollup verdict." };
+  }
 }
 
-function spreadState(r: BookRow): { label: string; tone: Tone } {
-  if (r.exit_vs_regional_spread == null) return { label: "no data", tone: "off" };
-  return spreadTrusted(r)
-    ? { label: "trusted", tone: "ok" }
-    : { label: "thin", tone: "warn" };
-}
-
-type Tone = "ok" | "warn" | "off" | "none";
-
-const TONE: Record<Tone, string> = {
-  ok: "border-harbour text-harbour",
-  warn: "border-primary text-primary",
-  off: "border-border text-muted-foreground",
-  none: "border-border text-muted-foreground",
+const VERDICT_TONE: Record<Verdict, string> = {
+  BUY: "border-harbour bg-harbour/12 text-harbour font-semibold",
+  SELECTIVE: "border-primary text-primary",
+  WATCH: "border-primary/50 text-primary/80 border-dashed",
+  "—": "border-border text-muted-foreground",
 };
 
-function Badge({ label, tone }: { label: string; tone: Tone }) {
+const VERDICT_ORDER: Record<Verdict, number> = { BUY: 0, SELECTIVE: 1, WATCH: 2, "—": 3 };
+
+function VerdictChip({ r }: { r: BookRow }) {
+  const v = verdictOf(r);
   return (
     <span
-      className={`label-caps inline-flex items-center rounded-sm border px-2 py-0.5 leading-5 ${TONE[tone]}`}
+      title={v.why}
+      className={`label-caps inline-flex items-center rounded-sm border px-2 py-0.5 leading-5 ${VERDICT_TONE[v.label]}`}
     >
-      {label}
+      {v.label}
     </span>
   );
 }
 
-const PLAY_ORDER: Record<string, number> = {
-  Arbitrage: 0,
-  Quality_hold: 1,
-  Pending: 2,
-  NA: 3,
-};
+/* ---------- room (§H test 2) ---------- */
+// in_zone_realisation is the prominent "is there room" number. Below 1.0 means
+// the in-zone work clears under estimate: room. At or above 1.0 the market
+// competes it up: no room. buy_regional_realisation (tier-independent) sits in
+// the tooltip as the strict test-2 metric behind the BUY gate.
 
-type SortKey = "play" | "median" | "spread" | "flags";
+function RoomCell({ r }: { r: BookRow }) {
+  const room = r.in_zone_realisation;
+  const hasRoom = room != null && Number(room) < 1.0;
+  const tone = room == null ? "text-muted-foreground" : hasRoom ? "text-harbour" : "text-primary";
+  const reg = r.buy_regional_realisation;
+  const title =
+    reg == null
+      ? "In-zone realisation. Regional (tier-independent) not available."
+      : `In-zone realisation. Regional tier-independent: ${xr(reg)} ${Number(reg) < 1 ? "(room)" : "(no room)"}.`;
+  return (
+    <span className={`num ${tone}`} title={title}>
+      {xr(room)}
+    </span>
+  );
+}
+
+/* ---------- spread (§H test 3) ---------- */
+// The size-matched spread is the honest one. Where matching lacked enough n it is
+// null: show "size check: n/a", not blank. The raw uncontrolled ratio is shown
+// only greyed and small, labelled, so it can never masquerade as the verdict.
+
+function SpreadCell({ r }: { r: BookRow }) {
+  const matched = r.matched_spread;
+  const raw = r.arb_edge_raw ?? r.exit_vs_regional_spread;
+  return (
+    <span
+      className="inline-flex flex-col leading-tight"
+      title={`Uncontrolled cross-tier ratio: ${xr(raw)}. Inflated by non-autograph junk, medium-mix, size-mix and fat tails; not a verdict.`}
+    >
+      {matched != null ? (
+        <span className="num text-foreground">
+          {xr(matched)}
+          <span className="ml-1 text-xs text-muted-foreground">(n={r.matched_n ?? 0})</span>
+        </span>
+      ) : (
+        <span className="label-caps text-muted-foreground">size check: n/a</span>
+      )}
+      <span className="label-caps text-[10px] text-muted-foreground/60">
+        raw {xr(raw)} uncontrolled
+      </span>
+    </span>
+  );
+}
+
+/* ---------- sorting ---------- */
+
+const PLAY_ORDER: Record<string, number> = { Arbitrage: 0, Quality_hold: 1, Pending: 2, NA: 3 };
+
+type SortKey = "play" | "verdict" | "room" | "spread" | "median" | "flags";
+
+// nulls always sort last regardless of direction
+const nz = (n: number | null | undefined, dir: 1 | -1) =>
+  n == null ? (dir === 1 ? Infinity : -Infinity) : Number(n);
 
 /* ---------- screen ---------- */
 
@@ -83,16 +167,23 @@ function BookScreen() {
     const by = [...rows];
     by.sort((a, b) => {
       switch (sort) {
+        case "verdict":
+          return (
+            VERDICT_ORDER[verdictOf(a).label] - VERDICT_ORDER[verdictOf(b).label] ||
+            nz(b.median_uk_hammer_gbp, -1) - nz(a.median_uk_hammer_gbp, -1)
+          );
+        case "room": // lower realisation = more room, ascending; nulls last
+          return nz(a.in_zone_realisation, 1) - nz(b.in_zone_realisation, 1);
+        case "spread": // bigger honest spread first; nulls last
+          return nz(b.matched_spread, -1) - nz(a.matched_spread, -1);
         case "median":
-          return (b.median_uk_hammer_gbp ?? -1) - (a.median_uk_hammer_gbp ?? -1);
-        case "spread":
-          return (b.exit_vs_regional_spread ?? -1) - (a.exit_vs_regional_spread ?? -1);
+          return nz(b.median_uk_hammer_gbp, -1) - nz(a.median_uk_hammer_gbp, -1);
         case "flags":
           return (b.open_flags ?? 0) - (a.open_flags ?? 0);
         default:
           return (
             (PLAY_ORDER[a.play_type ?? "NA"] ?? 3) - (PLAY_ORDER[b.play_type ?? "NA"] ?? 3) ||
-            (b.median_uk_hammer_gbp ?? -1) - (a.median_uk_hammer_gbp ?? -1)
+            nz(b.median_uk_hammer_gbp, -1) - nz(a.median_uk_hammer_gbp, -1)
           );
       }
     });
@@ -113,7 +204,7 @@ function BookScreen() {
     <AppShell
       eyebrow="Analysis"
       title="The Book"
-      lede="Every name on one screen. The spread is greyed until there are enough UK auto oil comps behind it, so a thin read never reads as a verdict."
+      lede="Every name on one screen, read through the same three tests as the grain page: n-gate, room, and a size-matched spread. No name reads as a buy off an uncontrolled ratio."
     >
       {isLoading && <p className="label-caps">Loading…</p>}
       {error && <p className="text-sm text-destructive">{(error as Error).message}</p>}
@@ -132,52 +223,63 @@ function BookScreen() {
                 <tr className="border-b border-border text-muted-foreground">
                   <Th k="play" label="Artist" className="pl-1" />
                   <th className="label-caps py-2">Play</th>
-                  <Th k="median" label="Median UK" />
-                  <Th k="spread" label="Exit/Reg" />
-                  <th className="label-caps py-2">Gate</th>
+                  <Th k="verdict" label="Verdict" />
+                  <Th k="room" label="Room (in-zone)" />
+                  <Th k="spread" label="Spread (matched)" />
+                  <Th k="median" label="Median UK oil" />
                   <th className="label-caps py-2">Sell-thru</th>
-                  <th className="label-caps py-2">In-zone</th>
-                  <th className="label-caps py-2">Confidence</th>
+                  <th className="label-caps py-2">Conf.</th>
                   <Th k="flags" label="Flags" />
                 </tr>
               </thead>
               <tbody>
                 {sorted.map((r) => {
-                  const gate = spreadState(r);
-                  const trusted = spreadTrusted(r);
                   const flags = r.open_flags ?? 0;
                   return (
-                    <tr key={r.artist_id} className="border-b border-border/60 hover:bg-secondary/40">
+                    <tr
+                      key={r.artist_id}
+                      className="border-b border-border/60 align-top hover:bg-secondary/40"
+                    >
                       <td className="py-3 pl-1">
                         <span className="font-medium text-foreground">{r.display_name}</span>
-                        <span className="num ml-2 text-xs text-muted-foreground">
-                          n={r.n_uk_auto_oil ?? 0}
-                        </span>
+                        {r.dates && (
+                          <span className="ml-2 text-xs text-muted-foreground">{r.dates}</span>
+                        )}
+                        <div className="num mt-0.5 text-[11px] text-muted-foreground">
+                          oil n={r.n_uk_auto_oil ?? 0} · exit={r.n_exit_strong ?? 0} · reg=
+                          {r.n_buy_regional ?? 0}
+                        </div>
                         <div className="mt-0.5">
                           <GrainLink
-                          artistId={r.artist_id}
-                          label="Grain"
-                          className="label-caps text-muted-foreground hover:text-foreground"
-                        />
-                      </div>
-                    </td>
-                      <td className="py-3">{r.play_type && <Chip>{r.play_type}</Chip>}</td>
-                      <td className="num py-3 text-foreground">
-                        <BookMedian artistId={r.artist_id} medianGbp={r.median_uk_hammer_gbp} />
+                            artistId={r.artist_id ?? ""}
+                            label="Grain"
+                            className="label-caps text-muted-foreground hover:text-foreground"
+                          />
+                        </div>
                       </td>
-                      <td
-                        className={`num py-3 ${trusted ? "text-foreground" : "text-muted-foreground/60"}`}
-                        title={trusted ? undefined : `Fewer than ${MIN_N} UK auto oil comps — untrusted`}
-                      >
-                        {x(r.exit_vs_regional_spread)}
+                      <td className="py-3">{r.play_type && <Chip>{r.play_type}</Chip>}</td>
+                      <td className="py-3">
+                        <VerdictChip r={r} />
+                      </td>
+                      <td className="num py-3">
+                        <RoomCell r={r} />
                       </td>
                       <td className="py-3">
-                        <Badge label={gate.label} tone={gate.tone} />
+                        <SpreadCell r={r} />
+                      </td>
+                      <td className="num py-3 text-foreground">
+                        <BookMedian
+                          artistId={r.artist_id ?? ""}
+                          medianGbp={r.median_uk_hammer_gbp}
+                        />
                       </td>
                       <td className="num py-3 text-foreground">{pctInt(r.sell_through_pct)}</td>
-                      <td className="num py-3 text-foreground">{x(r.in_zone_realisation)}</td>
                       <td className="py-3">
-                        {r.data_confidence ? <Chip>{r.data_confidence}</Chip> : <span className="text-muted-foreground">—</span>}
+                        {r.data_confidence ? (
+                          <Chip tone="muted">{r.data_confidence}</Chip>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
                       </td>
                       <td className="num py-3">
                         {flags > 0 ? (
@@ -193,10 +295,23 @@ function BookScreen() {
             </table>
           </div>
 
-          <p className="mt-4 text-xs text-muted-foreground">
-            A greyed spread means fewer than {MIN_N} UK auto oil comps stand behind it. Rows with no
-            spread at all stay listed, marked “no data”.
-          </p>
+          <div className="mt-4 space-y-1 text-xs text-muted-foreground">
+            <p>
+              Basis: all figures autograph-only, UK, oil. Median is the autograph-oil UK
+              hammer-equivalent.
+            </p>
+            <p>
+              Verdict applies the three §H tests off the rollup's own flags: exit-strong n-gate
+              (test 1), regional realisation below 1.0 (test 2), and a size-matched tier spread
+              (test 3). BUY needs all three; SELECTIVE is edge that is not size-confirmed; WATCH is
+              a thin exit; a dash is no edge or no data.
+            </p>
+            <p>
+              The spread shown is size-matched. Where matching lacked enough n it reads "size check:
+              n/a". The raw cross-tier ratio is greyed and labelled "uncontrolled": it is inflated
+              by non-autograph junk, medium-mix, size-mix and fat tails, and is never the verdict.
+            </p>
+          </div>
         </>
       )}
     </AppShell>
