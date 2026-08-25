@@ -4,12 +4,13 @@ import { supabaseForUser } from "../supabase";
 import { errorResult, textResult } from "../shared";
 import { loadScoreInputs, resolveArtist } from "../../desk/slices";
 import { scoreLot, type LotInput, type ScoreBundle } from "../../desk/score";
+import { lotRowFromDecision } from "../../desk/persist";
 
 export default defineTool({
   name: "score_lot",
   title: "Score a lot (Lot Desk v0.6)",
   description:
-    "Score a single auction lot against the collector fair-value discipline: rung-ladder anchor on home-market comps, bounded quality delta, per-name K_buy, hard taste + budget gates, and a walk-away ladder. Read-only; writes nothing. Returns the full decision object (Buy / Skip / Monitor with the binding constraint).",
+    "Score a single auction lot against the collector fair-value discipline: rung-ladder anchor on home-market comps, bounded quality delta, per-name K_buy, hard taste + budget gates, and a walk-away ladder. Returns the full decision object (Buy / Skip / Monitor with the binding constraint). By default it also writes the lot to the candidate ledger (public.lots), keyed on sale_key, so it surfaces on the Lot Desk beside its grain; pass persist:false for a dry-run that writes nothing.",
   inputSchema: {
     artist: z.string().optional().describe("Artist name or slug; resolved to artist_id. Omit if passing artist_id."),
     artist_id: z.string().optional().describe("Canonical slug; skips name resolution."),
@@ -39,8 +40,10 @@ export default defineTool({
     sale_context: z.string().optional().describe("Multiples-in-sale / pair / budget conflict prose."),
     taste_ok: z.boolean().describe("Glad to own at a fair price if it never re-rates? Hard gate."),
     period_year: z.number().optional().describe("Budget period; defaults to the sale year."),
+    persist: z.boolean().optional().describe("Write the scored lot to the candidate ledger (default true). false = dry-run, writes nothing."),
+    source_ref: z.string().optional().describe("Listing URL or MutualArt dump ref, stored on the lot for provenance."),
   },
-  annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
+  annotations: { readOnlyHint: false, idempotentHint: true, openWorldHint: false },
   handler: async (a, ctx) => {
     if (!ctx.isAuthenticated()) return errorResult("Not authenticated");
     try {
@@ -89,7 +92,21 @@ export default defineTool({
       };
 
       const bundle: ScoreBundle = { lot, comps, config, params, budget };
-      return textResult(scoreLot(bundle));
+      const d = scoreLot(bundle);
+
+      // Dry-run: score only, write nothing.
+      if (a.persist === false) return textResult({ ...d, persisted: false });
+
+      // Persist to the candidate ledger (upsert keyed on sale_key).
+      const row = lotRowFromDecision(d, lot, { captured_by: "claude", source_ref: a.source_ref ?? null });
+      const { data: saved, error: upErr } = await sb
+        .from("lots")
+        .upsert(row, { onConflict: "sale_key" })
+        .select("lot_id")
+        .single();
+      if (upErr) throw new ToolError(`lots upsert failed: ${upErr.message}`);
+
+      return textResult({ ...d, persisted: true, lot_id: saved.lot_id });
     } catch (err) {
       return errorResult(`score_lot error: ${err instanceof Error ? err.message : String(err)}`);
     }
