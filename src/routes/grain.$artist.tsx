@@ -34,7 +34,7 @@ function GrainPage() {
       const { data, error } = await supabase
         .from("comps")
         .select(
-          "artist_id, medium_class, medium_raw, vtype_resolved, hammer_equiv_gbp, longest_cm, status, in_zone, sale_date, sheet_grade, title, authorship, venue, est_mid_gbp"
+          "artist_id, medium_class, medium_raw, vtype_resolved, hammer_equiv_gbp, longest_cm, status, in_zone, sale_date, sheet_grade, title, authorship, venue, est_mid_gbp, ref, auto_ref, times_seen, repeat_flag, venue_canonical, dup_flag"
         )
         .eq("artist_id", artist)
         .limit(2000);
