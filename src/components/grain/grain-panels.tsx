@@ -13,7 +13,7 @@
 // Reads the comps grain (spec §1 columns). Foreign rows excluded per §E.
 // N_GATE mirrors the §E Exit_Strong n >= 8 rule.
 
-import { useMemo, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import {
   ScatterChart,
   Scatter,
@@ -24,6 +24,7 @@ import {
   ReferenceLine,
   ResponsiveContainer,
 } from "recharts";
+import { paperSleeve } from "@/lib/paper-sleeve";
 
 export interface GrainRow {
   artist_id: string;
@@ -41,13 +42,8 @@ export interface GrainRow {
 const N_GATE = 8;
 const TAIL_TRIM = 0.1;
 
-// Source of truth is the Mediums tab (Paper_Primary Y/N, Paper_Ceiling_GBP).
-// Mirrored here as a constant until artist_desk_config exposes them to the
-// client. The sub-sleeve is a closed set per §F; keep in lockstep if it changes.
-const PAPER_SLEEVE: Record<string, { ceiling: number }> = {
-  "david-roberts": { ceiling: 3000 },
-  "arthur-melville": { ceiling: 3750 },
-};
+// Paper sub-sleeve (Roberts, Melville) is resolved via the shared
+// @/lib/paper-sleeve module so the list stays canonical in one place.
 
 const TIERS = ["Buy_Regional", "Straddle", "Exit_Strong"] as const;
 type Tier = (typeof TIERS)[number];
@@ -186,6 +182,46 @@ function Badge({ tone, children }: { tone: "ok" | "warn" | "mute"; children: Rea
   );
 }
 
+// Dependency-free info tooltip. Click/tap toggles; blur closes. Kept local so
+// the panel carries its own explainers without assuming a shadcn Tooltip.
+function InfoDot({ text }: { text: string }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <span className="relative inline-flex align-middle">
+      <button
+        type="button"
+        aria-label="What this means"
+        onClick={() => setOpen((o) => !o)}
+        onBlur={() => setOpen(false)}
+        className="ml-1 grid h-4 w-4 place-items-center rounded-full border border-stone-300 text-[10px] leading-none text-stone-500 hover:border-stone-500 hover:text-stone-700"
+      >
+        i
+      </button>
+      {open && (
+        <span className="absolute left-5 top-0 z-20 w-64 rounded border border-stone-200 bg-white p-3 text-xs font-normal normal-case leading-relaxed tracking-normal text-stone-600 shadow-md">
+          {text}
+        </span>
+      )}
+    </span>
+  );
+}
+
+// KPI explainer copy, written from the §E/§H rules so it is name-specific, not
+// generic. Each says what good looks like and what the number is telling you.
+const KPI_HELP: Record<string, string> = {
+  RAW: "Exit-strong median divided by regional median. A high number looks like edge but is usually size or medium mix. Trust it only when n is 8 or more AND regional realisation is below 1.0. If RAW sits well above the OIL ONLY or TAIL STRIPPED cells, the spread is mix, not a repeatable edge.",
+  "OIL ONLY":
+    "The same ratio, oils only, stripping watercolour and paper out of the mix. If it collapses versus RAW, the headline was paper bleed. If it reads higher than RAW (up arrow), it is a thin, different slice: treat it with suspicion, not as a cleaner signal.",
+  "TAIL STRIPPED":
+    "The same ratio with the top decile removed per tier. If it collapses versus RAW, a few fat-tail lots drove the spread (the classic one-big-lot artefact), not something you can repeat.",
+};
+
+const CEILING_HELP =
+  "Finished-watercolour median divided by your Paper_Ceiling. Below 1.0 means the market clears under your ceiling: room to buy on paper. At or above 1.0 means the market is already at or above your ceiling: no room. This governs a paper bid; the oil-based Exit/Regional ratio is suppressed here as a category error.";
+
+const TIMEBUBBLE_HELP =
+  "Each bubble is one sold lot: date across, hammer up (log), bubble size is the painting's longest side, colour is in-zone versus out per the mandate. The line is the median by year and is descriptive only: no trend is fitted and nothing is projected forward.";
+
 // ---------- Paper-sleeve ceiling bar (replaces the ratio strip for §F names) ----------
 
 function CeilingBar({
@@ -205,6 +241,7 @@ function CeilingBar({
       <div className="flex items-baseline justify-between mb-1">
         <div className="text-sm">
           {s.wcHasGrade ? "Finished watercolour" : "Watercolour"} median (UK sold)
+          <InfoDot text={CEILING_HELP} />
         </div>
         <div className="font-mono text-2xl">{gbp(med)}</div>
       </div>
@@ -293,6 +330,7 @@ function KpiStrip({ s }: { s: GrainStats }) {
         <div key={c.label} className="bg-stone-50 p-4">
           <div className="text-xs tracking-widest text-stone-500 mb-1">
             {c.label} EXIT/REGIONAL
+            <InfoDot text={KPI_HELP[c.label] ?? ""} />
           </div>
           <div className="font-mono text-2xl">{ratioFmt(c.ratio)}</div>
           <div className="mt-1 flex flex-wrap items-center gap-2">
@@ -490,6 +528,94 @@ function PaperSizeScatter({ s, ceiling }: { s: GrainStats; ceiling: number }) {
   );
 }
 
+// ---------- Time bubble: date x, price y, bubble=size, colour=in-zone ----------
+// Descriptive drift only. Answers "is the in-zone gate paying, and is the name
+// re-rating up or down over time" WITHOUT fitting or projecting a trend: the
+// timing-as-signal thesis is falsified, so this stays a rear-view mirror.
+
+function TimeBubble({ rows, title }: { rows: GrainRow[]; title: string }) {
+  const pts = rows
+    .filter((r) => r.hammer_equiv_gbp != null && r.hammer_equiv_gbp > 0 && !!r.sale_date)
+    .map((r) => ({
+      t: new Date(r.sale_date).getTime(),
+      y: r.hammer_equiv_gbp as number,
+      size: r.longest_cm ?? 20,
+      inzone: r.in_zone === true,
+    }))
+    .filter((p) => !Number.isNaN(p.t));
+
+  if (pts.length < 3) {
+    return (
+      <p className="text-xs text-stone-500 border border-stone-200 rounded p-4">
+        Too few dated sold lots to plot.
+      </p>
+    );
+  }
+
+  const inzone = pts.filter((p) => p.inzone);
+  const outzone = pts.filter((p) => !p.inzone);
+
+  // yearly median, descriptive: no extrapolation beyond observed years
+  const byYear = new Map<number, number[]>();
+  for (const p of pts) {
+    const yr = new Date(p.t).getUTCFullYear();
+    const arr = byYear.get(yr);
+    if (arr) arr.push(p.y);
+    else byYear.set(yr, [p.y]);
+  }
+  const medianLine = [...byYear.entries()]
+    .map(([yr, vals]) => ({ t: Date.UTC(yr, 6, 1), y: median(vals) as number }))
+    .sort((a, b) => a.t - b.t);
+
+  const yearTick = (t: number) => String(new Date(t).getUTCFullYear());
+
+  return (
+    <ResponsiveContainer width="100%" height={300}>
+      <ScatterChart margin={{ top: 8, right: 16, bottom: 8, left: 8 }}>
+        <XAxis
+          type="number"
+          dataKey="t"
+          domain={["dataMin", "dataMax"]}
+          tickFormatter={yearTick}
+          tick={{ fontSize: 11, fontFamily: "monospace" }}
+          axisLine={false}
+          tickLine={false}
+        />
+        <YAxis
+          type="number"
+          dataKey="y"
+          scale="log"
+          domain={["auto", "auto"]}
+          tickFormatter={(v: number) => gbp(v)}
+          tick={{ fontSize: 11, fontFamily: "monospace" }}
+          width={72}
+          axisLine={false}
+          tickLine={false}
+        />
+        <ZAxis type="number" dataKey="size" range={[30, 460]} name="Longest cm" unit="cm" />
+        <Tooltip
+          formatter={(v: number, name: string) =>
+            name === "Longest cm" ? `${Math.round(v)}cm` : gbp(v)
+          }
+          labelFormatter={(t: number) => new Date(t).toLocaleDateString("en-GB")}
+          contentStyle={{ fontFamily: "monospace", fontSize: 12 }}
+        />
+        <Scatter name="In-zone" data={inzone} fill="#1f5f5b" fillOpacity={0.5} />
+        <Scatter name="Out of zone" data={outzone} fill="#8a7d6b" fillOpacity={0.4} />
+        {/* descriptive yearly-median spine */}
+        <Scatter
+          name="Median by year"
+          data={medianLine}
+          fill="#44403c"
+          line={{ stroke: "#44403c", strokeWidth: 1.5 }}
+          shape="circle"
+          legendType="line"
+        />
+      </ScatterChart>
+    </ResponsiveContainer>
+  );
+}
+
 // ---------- Panel 4: medium ledger ----------
 
 function MediumLedger({ s }: { s: GrainStats }) {
@@ -517,7 +643,7 @@ function MediumLedger({ s }: { s: GrainStats }) {
 
 export function GrainPanels({ rows, artistId }: { rows: GrainRow[]; artistId: string }) {
   const s = useMemo(() => computeGrainStats(rows), [rows]);
-  const sleeve = PAPER_SLEEVE[artistId];
+  const sleeve = paperSleeve(artistId);
 
   if (!s.usable.length) {
     return (
@@ -579,6 +705,24 @@ export function GrainPanels({ rows, artistId }: { rows: GrainRow[]; artistId: st
           </p>
         </section>
       )}
+
+      <section>
+        <h2 className="text-xs tracking-widest text-stone-500 mb-2">
+          {sleeve ? "WATERCOLOUR" : "OIL"} PRICE OVER TIME (BUBBLE = SIZE, COLOUR = IN-ZONE)
+          <InfoDot text={TIMEBUBBLE_HELP} />
+        </h2>
+        <TimeBubble
+          rows={s.usable.filter(
+            (r) => r.medium_class === (sleeve ? "Watercolour" : "Oil")
+          )}
+          title={sleeve ? "watercolour" : "oil"}
+        />
+        <p className="mt-2 text-xs text-stone-500">
+          Teal in-zone, muted out of zone; line is the yearly median. Descriptive
+          drift only: no trend is fitted or projected (timing-as-signal is a
+          falsified thesis).
+        </p>
+      </section>
 
       <section>
         <h2 className="text-xs tracking-widest text-stone-500 mb-2">
