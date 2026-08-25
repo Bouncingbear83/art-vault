@@ -59,7 +59,7 @@ function LotDeskList() {
 
       <div className="space-y-4">
         {(lots ?? []).map((lot) => (
-          <LotCard key={lot.lot_id} lot={lot} grain={grain?.[lot.artist_id]} />
+          <LotCard key={lot.lot_id} lot={lot} {...(grain?.[lot.artist_id] ? { grain: grain[lot.artist_id]! } : {})} />
         ))}
       </div>
     </AppShell>
