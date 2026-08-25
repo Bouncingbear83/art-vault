@@ -202,6 +202,13 @@ function BookCard({ r }: { r: BookRow }) {
         >
           Notes →
         </Link>
+        <Link
+          to="/notes/new"
+          search={{ artist: r.artist_id ?? "", entity: "" }}
+          className="label-caps text-muted-foreground hover:text-foreground"
+        >
+          + note
+        </Link>
       </div>
     </div>
   );
@@ -346,6 +353,13 @@ function BookScreen() {
                               className="label-caps text-muted-foreground hover:text-foreground"
                             >
                               Notes
+                            </Link>
+                            <Link
+                              to="/notes/new"
+                              search={{ artist: r.artist_id ?? "", entity: "" }}
+                              className="label-caps text-muted-foreground hover:text-foreground"
+                            >
+                              + note
                             </Link>
                           </div>
                         </td>
