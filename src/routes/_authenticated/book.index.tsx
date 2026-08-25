@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { AppShell } from "@/components/art/app-shell";
 import { ColInfo } from "@/components/art/col-info";
 import {
@@ -467,8 +467,8 @@ function BookScreen() {
                 </tr>
               ) : (
                 groups.map(({ lane, items }) => (
-                  <>
-                    <tr key={lane} className="border-b border-border bg-panel2">
+                  <Fragment key={lane}>
+                    <tr className="border-b border-border bg-panel2">
                       <td colSpan={9} className="px-3 py-1.5">
                         <span className="label-caps text-[10.5px] tracking-[0.12em] text-foreground">
                           {lane}
@@ -553,7 +553,7 @@ function BookScreen() {
                         </td>
                       </tr>
                     ))}
-                  </>
+                  </Fragment>
                 ))
               )}
             </tbody>

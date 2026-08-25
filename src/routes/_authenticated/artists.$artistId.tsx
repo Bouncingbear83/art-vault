@@ -16,6 +16,10 @@ import {
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/artists/$artistId")({
+  // ?tab=<tab> so the Book's "Notes ↗" can land straight on the notes record.
+  validateSearch: (s: Record<string, unknown>) => ({
+    tab: typeof s["tab"] === "string" ? (s["tab"] as string) : "",
+  }),
   head: () => ({
     meta: [
       { title: "Artist file — Art360" },
@@ -32,7 +36,10 @@ type Tab = (typeof TABS)[number];
 
 function ArtistPage() {
   const { artistId } = Route.useParams();
-  const [tab, setTab] = useState<Tab>("Verdict");
+  const { tab: tabParam } = Route.useSearch();
+  const [tab, setTab] = useState<Tab>(
+    (TABS as readonly string[]).includes(tabParam) ? (tabParam as Tab) : "Verdict",
+  );
   const [typeFilter, setTypeFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [tagFilter, setTagFilter] = useState("");
