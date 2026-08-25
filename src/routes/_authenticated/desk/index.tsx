@@ -89,13 +89,22 @@ function LotCard({ lot, grain }: { lot: ScoredLotRow; grain?: Grain360 }) {
             {[lot.venue, lot.sale_date].filter(Boolean).join(" · ")}
           </p>
         </div>
-        <Link
-          to="/grain/$artist"
-          params={{ artist: lot.artist_id }}
-          className="label-caps text-harbour transition-colors hover:underline"
-        >
-          Grain →
-        </Link>
+        <div className="flex shrink-0 items-center gap-4">
+          <Link
+            to="/notes/new"
+            search={{ artist: lot.artist_id, entity: lot.sale_key }}
+            className="label-caps text-muted-foreground transition-colors hover:text-foreground"
+          >
+            + note
+          </Link>
+          <Link
+            to="/grain/$artist"
+            params={{ artist: lot.artist_id }}
+            className="label-caps text-harbour transition-colors hover:underline"
+          >
+            Grain →
+          </Link>
+        </div>
       </div>
 
       {/* walk-away ladder */}
