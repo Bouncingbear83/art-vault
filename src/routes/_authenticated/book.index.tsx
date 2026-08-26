@@ -697,6 +697,16 @@ function BookScreen() {
                               Notes ↗
                             </Link>
                           </div>
+                           {r.mutualart_url && (
+                              
+                                href={r.mutualart_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="num border-b border-transparent text-[10px] text-faint hover:border-teal hover:text-teal"
+                              >
+                                MutualArt ↗
+                              </a>
+                            )}
                         </td>
                         <td className="px-3 py-2.5">
                           <RagDot rag={r.rag} />
