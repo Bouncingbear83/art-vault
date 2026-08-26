@@ -696,8 +696,15 @@ function BookScreen() {
                             >
                               Notes ↗
                             </Link>
-                          </div>
-                           {r.mutualart_url && (
+                          <Link
+                              to="/artists/$artistId"
+                              params={{ artistId: r.artist_id }}
+                              search={{ tab: "All notes" }}
+                              className="num border-b border-transparent text-[10px] text-faint hover:border-teal hover:text-teal"
+                            >
+                              Notes ↗
+                            </Link>
+                            {r.mutualart_url && (
                               
                                 href={r.mutualart_url}
                                 target="_blank"
@@ -707,6 +714,7 @@ function BookScreen() {
                                 MutualArt ↗
                               </a>
                             )}
+                          </div>
                         </td>
                         <td className="px-3 py-2.5">
                           <RagDot rag={r.rag} />
