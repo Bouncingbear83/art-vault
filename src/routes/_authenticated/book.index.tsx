@@ -696,16 +696,8 @@ function BookScreen() {
                             >
                               Notes ↗
                             </Link>
-                          <Link
-                              to="/artists/$artistId"
-                              params={{ artistId: r.artist_id }}
-                              search={{ tab: "All notes" }}
-                              className="num border-b border-transparent text-[10px] text-faint hover:border-teal hover:text-teal"
-                            >
-                              Notes ↗
-                            </Link>
                             {r.mutualart_url && (
-                              
+                              <a
                                 href={r.mutualart_url}
                                 target="_blank"
                                 rel="noopener noreferrer"
