@@ -199,20 +199,14 @@ function BookScreen() {
 
   const kpi = useMemo(() => {
     const live = rows.filter((r) => r.rag === "g").length;
-    const clean = rows.filter(
-      (r) =>
-        (r.n_exit_strong ?? 0) >= 8 &&
-        r.buy_regional_realisation !== null &&
-        Number(r.buy_regional_realisation) < 1 &&
-        r.matched_spread !== null,
-    ).length;
+    const zonePays = rows.filter((r) => r.zone_fitness === "Pays").length;
     const stale = rows.filter((r) => r.fresh !== null && r.fresh <= 0).length;
     const unseeded = rows.filter((r) => r.flags.includes("unseeded")).length;
     const ceiling = rows.filter((r) => r.flags.includes("ceiling-breach")).length;
     const arr = rows.filter((r) => r.flags.includes("ARR")).length;
     return [
       { tone: "good", n: live, l: "Live lanes" },
-      { tone: "good", n: clean, l: "Pass full §H" },
+      { tone: "good", n: zonePays, l: "Zone pays" },
       { tone: "", n: rows.length, l: "Names tracked" },
       { tone: "flag", n: stale, l: "Verdicts stale" },
       { tone: "flag", n: unseeded, l: "Config unseeded" },
