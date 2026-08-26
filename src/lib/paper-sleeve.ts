@@ -17,7 +17,7 @@ export interface PaperSleeveEntry {
 
 export const PAPER_SLEEVE: Record<string, PaperSleeveEntry> = {
    "william-wyld": { ceiling: 1000, paperPrimary: false },
-   "david-roberts": { ceiling: 3000, paperPrimary: true },
+   "david-roberts": { ceiling: 4200, paperPrimary: true },
    "arthur-melville": { ceiling: 3750, paperPrimary: true },
 };
 
