@@ -20,6 +20,7 @@ export interface BookScreenRow {
   tier: string | null;
   arr_status: string | null;
   palette_pref: string | null;
+  mutualart_url: string | null;
   paper_sleeve: boolean | null;
   buy_edge_flag: string | null;
   median_realisation: number | null;
