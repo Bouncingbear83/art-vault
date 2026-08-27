@@ -17,7 +17,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { GrainPanels, type GrainRow } from "@/components/grain/grain-panels";
+import { GrainPanels, type GrainRow, type BandRow } from "@/components/grain/grain-panels";
 
 export const Route = createFileRoute("/grain/$artist")({
   component: GrainPage,
