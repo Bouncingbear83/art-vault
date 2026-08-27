@@ -1229,6 +1229,8 @@ export type Database = {
       desk_params_current: {
         Row: {
           arr_rate: number | null
+          band_factor_cap: number | null
+          band_n_gate: number | null
           bp_pct_default: number | null
           collector_discount_firm: number | null
           collector_discount_stretch: number | null
