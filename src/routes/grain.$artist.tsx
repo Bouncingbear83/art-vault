@@ -81,7 +81,7 @@ function GrainPage() {
       {rows == null && !error ? (
         <div className="text-sm text-stone-400 font-mono">loading grain\u2026</div>
       ) : rows != null ? (
-        <GrainPanels rows={rows} artistId={artist} />
+        <GrainPanels rows={rows} artistId={artist} bands={bands} />
       ) : null}
     </div>
   );
