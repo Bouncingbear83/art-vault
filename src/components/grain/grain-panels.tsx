@@ -559,9 +559,11 @@ function TierStripPanel({ rows }: { rows: GrainRow[] }) {
 
 // ---------- size scatter (with medium toggle) ----------
 
-function SizeScatter({ rows }: { rows: GrainRow[] }) {
+function SizeScatter({ rows, bands, showBands }: { rows: GrainRow[]; bands: BandRow[]; showBands: boolean }) {
   const withSize = rows.filter((r) => r.longest_cm != null && (r.longest_cm as number) > 0);
   const panels = withSize.filter((r) => parseSupport(r.medium_raw) === "panel");
+  const xMax = withSize.reduce((m, r) => Math.max(m, r.longest_cm as number), 0) || 120;
+  const lines = showBands ? bands.filter((bd) => bd.median_gbp != null) : [];
   return (
     <ResponsiveContainer width="100%" height={280}>
       <ScatterChart margin={{ top: 8, right: 16, bottom: 8, left: 8 }}>
@@ -569,6 +571,19 @@ function SizeScatter({ rows }: { rows: GrainRow[] }) {
         <YAxis type="number" dataKey="y" scale="log" domain={["auto", "auto"]} tickFormatter={(v: number) => gbp(v)} tick={{ fontSize: 11, fontFamily: "monospace" }} width={72} axisLine={false} tickLine={false} />
         <ZAxis range={[28, 28]} />
         <Tooltip content={<LotTooltip />} />
+        {lines.map((bd) => (
+          <ReferenceLine
+            key={bd.band_label}
+            segment={[
+              { x: bd.band_lo, y: bd.median_gbp as number },
+              { x: bd.band_hi ?? Math.max(xMax, bd.band_lo + 10), y: bd.median_gbp as number },
+            ]}
+            stroke="#44403c"
+            strokeWidth={2}
+            strokeDasharray={bd.thin ? "4 3" : undefined}
+            label={{ value: `${bd.band_label} ${gbp(bd.median_gbp)}${bd.thin ? "*" : ""} n=${bd.n}`, position: "insideTopLeft", fontSize: 10 }}
+          />
+        ))}
         {TIERS.map((t) => (
           <Scatter key={t} name={TIER_LABEL[t]} data={withSize.filter((r) => r.vtype_resolved === t).map((r) => ({ x: r.longest_cm, y: r.hammer_equiv_gbp, ...enrich(r) }))} fill={TIER_DOT[t]} fillOpacity={0.6} />
         ))}
