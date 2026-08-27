@@ -708,7 +708,7 @@ function SizeBandTable({ rows, bands }: { rows: GrainRow[]; bands: BandRow[] }) 
     : [{ label: "<45", lo: 0, hi: 45 }, { label: "45-60", lo: 45, hi: 60 },
        { label: "60-90", lo: 60, hi: 90 }, { label: "90+", lo: 90, hi: Infinity }];
   const sized = rows.filter((r) => r.longest_cm != null && (r.longest_cm as number) > 0);
-  const rowsOut = bands.map((b) => {
+  const rowsOut = bandDefs.map((b) => {
     const inB = sized.filter((r) => (r.longest_cm as number) >= b.lo && (r.longest_cm as number) < b.hi);
     const reg = inB.filter((r) => r.vtype_resolved === "Buy_Regional").map((r) => r.hammer_equiv_gbp as number);
     const exit = inB.filter((r) => r.vtype_resolved === "Exit_Strong").map((r) => r.hammer_equiv_gbp as number);
