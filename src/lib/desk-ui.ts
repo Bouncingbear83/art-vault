@@ -105,6 +105,24 @@ export interface CommitActuals {
   condition_status: string;
   buy_date: string;
   rationale: string;
+  commit_override_reason?: string;
+}
+
+/** Ladder guard shared by the UI and the MCP commit path. */
+export function commitLadderGuard(
+  hammer: number,
+  firm: number | null,
+  stretch: number | null,
+): { tooHigh: boolean; tooLow: boolean; message: string | null } {
+  const ceiling = stretch ?? firm;
+  const tooHigh = ceiling != null && hammer > ceiling;
+  const tooLow = firm != null && hammer < firm * 0.25;
+  const message = tooHigh
+    ? `hammer £${hammer} exceeds the scored ${stretch != null ? "stretch" : "firm"} bid of £${ceiling}; supply a reason to record it anyway`
+    : tooLow
+      ? `hammer £${hammer} is under a quarter of the firm bid of £${firm}; this reads as a stale or mistyped figure. Supply a reason if it is real`
+      : null;
+  return { tooHigh, tooLow, message };
 }
 
 export interface CommitResult {
