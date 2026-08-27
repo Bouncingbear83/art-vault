@@ -24,7 +24,7 @@ import {
   ReferenceLine,
   ResponsiveContainer,
 } from "recharts";
-import { paperSleeve } from "@/lib/paper-sleeve";
+import { resolveSleeve, type SleeveConfig } from "@/lib/paper-sleeve";
 import { RepeatPanel } from "@/components/grain/repeat-panel";
 
 export interface GrainRow {
@@ -390,7 +390,7 @@ function YearRange({ bounds, from, to, setFrom, setTo }: { bounds: [number, numb
 
 // ---------- ceiling bar + paper split ----------
 
-function CeilingBar({ s, ceiling }: { s: GrainStats; ceiling: number }) {
+function CeilingBar({ s, ceiling, stale }: { s: GrainStats; ceiling: number; stale?: boolean }) {
   const med = s.finishedWcMed;
   const ratio = med != null && ceiling > 0 ? med / ceiling : null;
   const fillPct = ratio != null ? Math.min(100, ratio * 100) : 0;
@@ -405,7 +405,7 @@ function CeilingBar({ s, ceiling }: { s: GrainStats; ceiling: number }) {
         <div className="font-mono text-2xl">{gbp(med)}</div>
       </div>
       <div className="flex items-baseline justify-between mb-3 text-xs text-stone-500">
-        <div>vs Paper_Ceiling {gbp(ceiling)}</div>
+        <div>vs Paper_Ceiling {gbp(ceiling)}{stale ? " (fallback: live config not loaded)" : ""}</div>
         <div className="font-mono">n={s.finishedWcN}</div>
       </div>
       <div className="relative h-4 bg-stone-200 rounded overflow-hidden">
@@ -807,8 +807,16 @@ function MediumLedger({ s }: { s: GrainStats }) {
 
 // ---------- composed ----------
 
-export function GrainPanels({ rows, artistId, bands }: { rows: GrainRow[]; artistId: string; bands: BandRow[] }) {
-  const sleeve = paperSleeve(artistId);
+export function GrainPanels({
+  rows, artistId, bands, sleeveConfig,
+}: {
+  rows: GrainRow[]; artistId: string; bands: BandRow[];
+  /** Live artist_desk_config row. Omit only where no query is possible: the
+   *  ceiling is computed from the /desk/params multiple, so a client constant
+   *  goes stale as soon as the slider moves (mandate v7.3). */
+  sleeveConfig?: SleeveConfig | null;
+}) {
+  const sleeve = resolveSleeve(artistId, sleeveConfig);
   const paperMode = sleeve?.paperPrimary === true; // suppress oil view only for paper-primary names
   const bounds = useMemo<[number, number]>(() => yearsOf(rows) ?? [2000, new Date().getUTCFullYear()], [rows]);
   const [from, setFrom] = useState(bounds[0]);
@@ -839,7 +847,7 @@ export function GrainPanels({ rows, artistId, bands }: { rows: GrainRow[]; artis
             {paperMode ? (
               <>
                 <h2 className="text-xs tracking-widest text-stone-500 mb-2">PAPER SLEEVE: CEILING-RELATIVE READ (EXIT/REGIONAL SUPPRESSED)</h2>
-                <CeilingBar s={s} ceiling={sleeve!.ceiling} />
+                <CeilingBar s={s} ceiling={sleeve!.ceiling} stale={sleeve!.stale} />
                 <p className="mt-2 text-xs text-stone-500">Exit/Regional ratio is a category error for a paper-primary name: it divides premium finished sheets by cheap regional scraps. The bar above is the number that governs the bid.</p>
                 {s.wcHasGrade && (
                   <div className="mt-4">
