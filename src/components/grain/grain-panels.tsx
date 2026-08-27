@@ -51,6 +51,16 @@ export interface GrainRow {
   dup_flag?: string | null;
 }
 
+export interface BandRow {
+  band_label: string;
+  band_lo: number;
+  band_hi: number | null;
+  sort_order: number;
+  n: number;
+  median_gbp: number | null;
+  thin: boolean;
+}
+
 const N_GATE = 8;
 const TAIL_TRIM = 0.1;
 const EST_FLOOR = 200; // §E: realisation lies on sub-£200 estimates; exclude them
