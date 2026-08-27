@@ -195,10 +195,19 @@ export async function commitLotClient(f: LotForm, act: CommitActuals): Promise<C
   const sale_key = d.lot.sale_key;
   const buy_date = act.buy_date || todayISO();
   const firm = d.ladder.firm;
+  const stretch = d.ladder.stretch;
   const over = firm != null && act.hammer_paid_gbp > firm;
+
+  // Refusal gate before any write: a wrong hammer propagates to positions,
+  // all_in_gbp and, via the positions trigger, to budget.committed_gbp.
+  const guard = commitLadderGuard(act.hammer_paid_gbp, firm, stretch);
+  const outside = guard.tooHigh || guard.tooLow;
+  if (outside && !act.commit_override_reason?.trim()) throw new Error(guard.message!);
+
   const actuals =
     `ACTUALS: hammer £${act.hammer_paid_gbp}, all-in £${all_in}, K_buy ${K}, house ${act.house || f.venue}.` +
-    (over ? ` FLAG: paid above firm £${firm}.` : "");
+    (over ? ` FLAG: paid above firm £${firm}.` : "") +
+    (outside ? `\n\nFLAGS: commit outside ladder. ${act.commit_override_reason!.trim()}` : "");
 
   // one Lot note per lot: the verdict note becomes the committed record
   const note_id = await upsertLotNote({
