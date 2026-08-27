@@ -51,6 +51,16 @@ export interface GrainRow {
   dup_flag?: string | null;
 }
 
+export interface BandRow {
+  band_label: string;
+  band_lo: number;
+  band_hi: number | null;
+  sort_order: number;
+  n: number;
+  median_gbp: number | null;
+  thin: boolean;
+}
+
 const N_GATE = 8;
 const TAIL_TRIM = 0.1;
 const EST_FLOOR = 200; // §E: realisation lies on sub-£200 estimates; exclude them
@@ -549,9 +559,11 @@ function TierStripPanel({ rows }: { rows: GrainRow[] }) {
 
 // ---------- size scatter (with medium toggle) ----------
 
-function SizeScatter({ rows }: { rows: GrainRow[] }) {
+function SizeScatter({ rows, bands, showBands }: { rows: GrainRow[]; bands: BandRow[]; showBands: boolean }) {
   const withSize = rows.filter((r) => r.longest_cm != null && (r.longest_cm as number) > 0);
   const panels = withSize.filter((r) => parseSupport(r.medium_raw) === "panel");
+  const xMax = withSize.reduce((m, r) => Math.max(m, r.longest_cm as number), 0) || 120;
+  const lines = showBands ? bands.filter((bd) => bd.median_gbp != null) : [];
   return (
     <ResponsiveContainer width="100%" height={280}>
       <ScatterChart margin={{ top: 8, right: 16, bottom: 8, left: 8 }}>
@@ -559,6 +571,19 @@ function SizeScatter({ rows }: { rows: GrainRow[] }) {
         <YAxis type="number" dataKey="y" scale="log" domain={["auto", "auto"]} tickFormatter={(v: number) => gbp(v)} tick={{ fontSize: 11, fontFamily: "monospace" }} width={72} axisLine={false} tickLine={false} />
         <ZAxis range={[28, 28]} />
         <Tooltip content={<LotTooltip />} />
+        {lines.map((bd) => (
+          <ReferenceLine
+            key={bd.band_label}
+            segment={[
+              { x: bd.band_lo, y: bd.median_gbp as number },
+              { x: bd.band_hi ?? Math.max(xMax, bd.band_lo + 10), y: bd.median_gbp as number },
+            ]}
+            stroke="#44403c"
+            strokeWidth={2}
+            strokeDasharray={bd.thin ? "4 3" : undefined}
+            label={{ value: `${bd.band_label} ${gbp(bd.median_gbp)}${bd.thin ? "*" : ""} n=${bd.n}`, position: "insideTopLeft", fontSize: 10 }}
+          />
+        ))}
         {TIERS.map((t) => (
           <Scatter key={t} name={TIER_LABEL[t]} data={withSize.filter((r) => r.vtype_resolved === t).map((r) => ({ x: r.longest_cm, y: r.hammer_equiv_gbp, ...enrich(r) }))} fill={TIER_DOT[t]} fillOpacity={0.6} />
         ))}
@@ -569,7 +594,7 @@ function SizeScatter({ rows }: { rows: GrainRow[] }) {
   );
 }
 
-function SizeScatterPanel({ rows }: { rows: GrainRow[] }) {
+function SizeScatterPanel({ rows, bands }: { rows: GrainRow[]; bands: BandRow[] }) {
   const [med, setMed] = useState<"all" | "Oil" | "Watercolour">("all");
   const filtered = med === "all" ? rows : rows.filter((r) => r.medium_class === med);
   return (
@@ -578,7 +603,7 @@ function SizeScatterPanel({ rows }: { rows: GrainRow[] }) {
         <h2 className="text-xs tracking-widest text-stone-500">SIZE VS PRICE (IF EXIT DOTS SIT UP AND RIGHT, SPREAD IS SIZE-MIX)</h2>
         <MediumToggle med={med} setMed={setMed} />
       </div>
-      <SizeScatter rows={filtered} />
+      <SizeScatter rows={filtered} bands={bands} showBands={med !== "Watercolour"} />
       <Caption rows={filtered.filter((r) => r.longest_cm != null && (r.longest_cm as number) > 0)} />
       <Key
         items={[
@@ -586,6 +611,7 @@ function SizeScatterPanel({ rows }: { rows: GrainRow[] }) {
           { colour: TIER_DOT.Straddle, label: "Straddle" },
           { colour: TIER_DOT.Exit_Strong, label: "Exit strong" },
           { colour: SUPPORT, label: "Board/panel (condition risk)", shape: "diamond" },
+          { colour: "#44403c", label: "Band median, in-zone UK oil (dashed = thin, n<5)", shape: "line" },
         ]}
       />
     </section>
@@ -675,16 +701,14 @@ function RealisationPanel({ rows }: { rows: GrainRow[] }) {
 
 // ---------- size-band spread table (§H test 3) ----------
 
-function SizeBandTable({ rows }: { rows: GrainRow[] }) {
+function SizeBandTable({ rows, bands }: { rows: GrainRow[]; bands: BandRow[] }) {
   // rows = autograph oil, already filtered by caller
-  const bands = [
-    { label: "<40cm", lo: 0, hi: 40 },
-    { label: "40–60cm", lo: 40, hi: 60 },
-    { label: "60–80cm", lo: 60, hi: 80 },
-    { label: "80cm+", lo: 80, hi: Infinity },
-  ];
+  const bandDefs = bands.length
+    ? bands.map((bd) => ({ label: bd.band_label, lo: bd.band_lo, hi: bd.band_hi ?? Infinity }))
+    : [{ label: "<45", lo: 0, hi: 45 }, { label: "45-60", lo: 45, hi: 60 },
+       { label: "60-90", lo: 60, hi: 90 }, { label: "90+", lo: 90, hi: Infinity }];
   const sized = rows.filter((r) => r.longest_cm != null && (r.longest_cm as number) > 0);
-  const rowsOut = bands.map((b) => {
+  const rowsOut = bandDefs.map((b) => {
     const inB = sized.filter((r) => (r.longest_cm as number) >= b.lo && (r.longest_cm as number) < b.hi);
     const reg = inB.filter((r) => r.vtype_resolved === "Buy_Regional").map((r) => r.hammer_equiv_gbp as number);
     const exit = inB.filter((r) => r.vtype_resolved === "Exit_Strong").map((r) => r.hammer_equiv_gbp as number);
@@ -783,7 +807,7 @@ function MediumLedger({ s }: { s: GrainStats }) {
 
 // ---------- composed ----------
 
-export function GrainPanels({ rows, artistId }: { rows: GrainRow[]; artistId: string }) {
+export function GrainPanels({ rows, artistId, bands }: { rows: GrainRow[]; artistId: string; bands: BandRow[] }) {
   const sleeve = paperSleeve(artistId);
   const paperMode = sleeve?.paperPrimary === true; // suppress oil view only for paper-primary names
   const bounds = useMemo<[number, number]>(() => yearsOf(rows) ?? [2000, new Date().getUTCFullYear()], [rows]);
@@ -843,8 +867,8 @@ export function GrainPanels({ rows, artistId }: { rows: GrainRow[]; artistId: st
             </section>
           ) : (
             <>
-              <SizeScatterPanel rows={s.usable} />
-              <SizeBandTable rows={oilRows} />
+              <SizeScatterPanel rows={s.usable} bands={bands} />
+              <SizeBandTable rows={oilRows} bands={bands} />
             </>
           )}
 
