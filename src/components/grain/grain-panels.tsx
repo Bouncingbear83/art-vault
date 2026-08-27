@@ -867,8 +867,8 @@ export function GrainPanels({ rows, artistId, bands }: { rows: GrainRow[]; artis
             </section>
           ) : (
             <>
-              <SizeScatterPanel rows={s.usable} />
-              <SizeBandTable rows={oilRows} />
+              <SizeScatterPanel rows={s.usable} bands={bands} />
+              <SizeBandTable rows={oilRows} bands={bands} />
             </>
           )}
 
