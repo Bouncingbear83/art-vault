@@ -121,7 +121,25 @@ export interface Anchor {
   confidence: "High" | "High-" | "Med" | "Med-" | null;
   iqr: [number, number] | null;
   comp_range: [number, number] | null;
+  band_factor?: number | null;
   flags: string[];
+}
+
+/** Raw row from the artist_size_band_medians view (passed through untouched). */
+export interface BandMedianRow {
+  artist_id?: string | null;
+  band_label?: string | null;
+  band_lo?: number | null;
+  band_hi?: number | null;
+  sort_order?: number | null;
+  tier_scope?: string | null;
+  n?: number | null;
+  median_gbp?: number | null;
+  p25_gbp?: number | null;
+  p75_gbp?: number | null;
+  min_gbp?: number | null;
+  max_gbp?: number | null;
+  thin?: boolean | null;
 }
 
 export interface Ladder {

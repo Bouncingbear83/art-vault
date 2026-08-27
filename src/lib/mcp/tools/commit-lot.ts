@@ -59,7 +59,7 @@ export default defineTool({
     }
 
     const period_year = Number(a.sale_date.slice(0, 4));
-    const { comps, config, params, budget } = await loadScoreInputs(sb, artist_id, period_year);
+    const { comps, bands, config, params, budget } = await loadScoreInputs(sb, artist_id, period_year);
     if (!config) throw new ToolError(`no artist_desk_config for "${artist_id}" (run the Phase 0 seed)`);
 
     const lot: LotInput = {
@@ -85,7 +85,7 @@ export default defineTool({
       ...(a.in_zone ? { in_zone: a.in_zone } : {}),
     };
 
-    const bundle: ScoreBundle = { lot, comps, config, params, budget };
+    const bundle: ScoreBundle = { lot, comps, config, params, budget, bands: bands ?? [] };
     const d = scoreLot(bundle);
 
     // Discipline flags on the actual price paid.

@@ -110,8 +110,23 @@ export async function fetchBudget(sb: SupabaseClient, period_year: number): Prom
   };
 }
 
+/** Raw rows from the artist_size_band_medians view — passed through untouched. */
+export type BandRow = Record<string, unknown>;
+
+/** Size-band medians for one artist (All_UK scope). Never throws: [] on error. */
+export async function fetchArtistBands(sb: SupabaseClient, artist_id: string): Promise<BandRow[]> {
+  const { data: bandRows, error: bandErr } = await sb
+    .from("artist_size_band_medians")
+    .select("artist_id, band_label, band_lo, band_hi, sort_order, tier_scope, n, median_gbp, p25_gbp, p75_gbp, min_gbp, max_gbp, thin")
+    .eq("artist_id", artist_id)
+    .eq("tier_scope", "All_UK");
+  if (bandErr) return [];
+  return bandRows ?? [];
+}
+
 export interface ScoreInputs {
   comps: CompRow[];
+  bands: BandRow[];
   config: DeskConfig | null;
   params: DeskParams;
   budget: BudgetRow | null;
@@ -123,11 +138,12 @@ export async function loadScoreInputs(
   artist_id: string,
   period_year: number,
 ): Promise<ScoreInputs> {
-  const [comps, config, params, budget] = await Promise.all([
+  const [comps, bands, config, params, budget] = await Promise.all([
     fetchArtistComps(sb, artist_id),
+    fetchArtistBands(sb, artist_id),
     fetchDeskConfig(sb, artist_id),
     fetchDeskParams(sb),
     fetchBudget(sb, period_year),
   ]);
-  return { comps, config, params, budget };
+  return { comps, bands, config, params, budget };
 }
