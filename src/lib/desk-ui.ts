@@ -93,9 +93,9 @@ export async function scoreLotClient(f: LotForm): Promise<Decision> {
   if (!f.artist_id) throw new Error("Choose an artist.");
   if (!f.sale_date) throw new Error("Set a sale date.");
   const period_year = Number(f.sale_date.slice(0, 4));
-  const { comps, config, params, budget } = await loadScoreInputs(sb, f.artist_id, period_year);
+  const { comps, bands, config, params, budget } = await loadScoreInputs(sb, f.artist_id, period_year);
   if (!config) throw new Error(`No desk config for "${f.artist_id}".`);
-  const bundle: ScoreBundle = { lot: toLotInput(f), comps, config, params, budget };
+  const bundle: ScoreBundle = { lot: toLotInput(f), comps, config, params, budget, bands: bands ?? [] };
   return scoreLot(bundle);
 }
 
