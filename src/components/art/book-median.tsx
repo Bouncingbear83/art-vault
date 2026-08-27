@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { Chip } from "@/components/art/primitives";
 import { gbp } from "@/lib/art360";
-import { isPaperSleeve } from "@/lib/paper-sleeve";
+
 
 // Book MEDIAN UK cell.
 //
@@ -20,11 +20,14 @@ import { isPaperSleeve } from "@/lib/paper-sleeve";
 export function BookMedian({
   artistId,
   medianGbp,
+  paperSleeve,
 }: {
   artistId: string;
   medianGbp: number | null | undefined;
+  /** book_screen.paper_sleeve, straight from the DB: never a client constant. */
+  paperSleeve: boolean | null | undefined;
 }) {
-  if (!isPaperSleeve(artistId)) {
+  if (paperSleeve !== true) {
     return <span className="num">{gbp(medianGbp ?? null)}</span>;
   }
   return (
