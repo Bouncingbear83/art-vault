@@ -234,11 +234,22 @@ function ResultPanel({ result, form }: { result: Decision; form: LotForm }) {
 
 function CommitPanel({ result, form }: { result: Decision; form: LotForm }) {
   const qc = useQueryClient();
+  const [house, setHouse] = useState(form.venue);
+  // Reset the actuals whenever a new Decision arrives: a stale hammer figure
+  // attached to a fresh ladder is the one number the operator must retype.
   const [act, setAct] = useState<CommitActuals>({
-    hammer_paid_gbp: result.ladder.firm ?? 0, house: form.venue, condition_status: "", buy_date: "", rationale: "",
+    hammer_paid_gbp: 0, house, condition_status: "", buy_date: "", rationale: "", commit_override_reason: "",
   });
+  useEffect(() => {
+    setAct((p) => ({ ...p, hammer_paid_gbp: 0, condition_status: "", commit_override_reason: "" }));
+  }, [result]);
+
+  const guard = commitLadderGuard(act.hammer_paid_gbp, result.ladder.firm, result.ladder.stretch);
+  const outside = act.hammer_paid_gbp > 0 && (guard.tooHigh || guard.tooLow);
+  const needsReason = outside && !act.commit_override_reason?.trim();
+
   const commit = useMutation({
-    mutationFn: () => commitLotClient(form, act),
+    mutationFn: () => commitLotClient(form, { ...act, house }),
     onSuccess: (r) => {
       toast.success(`Committed. All-in ${gbp(r.all_in_gbp)}.${r.over_walkaway ? " Paid above firm." : ""}`);
       qc.invalidateQueries({ queryKey: ["positions"] });
