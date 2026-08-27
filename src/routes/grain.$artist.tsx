@@ -18,6 +18,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { GrainPanels, type GrainRow, type BandRow } from "@/components/grain/grain-panels";
+import type { SleeveConfig } from "@/lib/paper-sleeve";
 
 export const Route = createFileRoute("/grain/$artist")({
   component: GrainPage,
@@ -27,12 +28,15 @@ function GrainPage() {
   const { artist } = Route.useParams();
   const [rows, setRows] = useState<GrainRow[] | null>(null);
   const [bands, setBands] = useState<BandRow[]>([]);
+  // Live sleeve config: the ceiling is COMPUTED from the /desk/params multiple,
+  // so it must be read, never taken from a client constant (mandate v7.3).
+  const [sleeveCfg, setSleeveCfg] = useState<SleeveConfig | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const [{ data, error }, { data: bandData }] = await Promise.all([
+      const [{ data, error }, { data: bandData }, { data: cfgData }] = await Promise.all([
         supabase
           .from("comps")
           .select(
@@ -47,11 +51,17 @@ function GrainPage() {
           .eq("tier_scope", "All_UK")
           .neq("band_label", "ALL")
           .order("sort_order"),
+        supabase
+          .from("artist_desk_config")
+          .select("paper_ceiling_gbp, paper_primary")
+          .eq("artist_id", artist)
+          .maybeSingle(),
       ]);
       if (cancelled) return;
       if (error) setError(error.message);
       else setRows((data ?? []) as GrainRow[]);
       setBands((bandData ?? []) as BandRow[]);
+      setSleeveCfg((cfgData ?? null) as SleeveConfig | null);
     })();
     return () => {
       cancelled = true;
@@ -81,7 +91,7 @@ function GrainPage() {
       {rows == null && !error ? (
         <div className="text-sm text-stone-400 font-mono">loading grain\u2026</div>
       ) : rows != null ? (
-        <GrainPanels rows={rows} artistId={artist} bands={bands} />
+        <GrainPanels rows={rows} artistId={artist} bands={bands} sleeveConfig={sleeveCfg} />
       ) : null}
     </div>
   );
