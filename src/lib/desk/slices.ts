@@ -8,7 +8,7 @@
 // ============================================================================
 
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { UK_TIERS, type CompRow, type DeskConfig, type DeskParams, type BudgetRow } from "./score";
+import { UK_TIERS, type BandMedianRow, type CompRow, type DeskConfig, type DeskParams, type BudgetRow } from "./score";
 
 const num = (v: unknown): number => (v == null ? NaN : Number(v));
 const numOrNull = (v: unknown): number | null => (v == null ? null : Number(v));
@@ -91,6 +91,8 @@ export async function fetchDeskParams(sb: SupabaseClient): Promise<DeskParams> {
     n_gate: Math.round(num(r["n_gate"])),
     homogeneity_threshold: num(r["homogeneity_threshold"]),
     recency_cutoff: Math.round(num(r["recency_cutoff"])),
+    ...(r["band_n_gate"] != null ? { band_n_gate: Math.round(num(r["band_n_gate"])) } : {}),
+    ...(r["band_factor_cap"] != null ? { band_factor_cap: num(r["band_factor_cap"]) } : {}),
   };
 }
 
@@ -110,23 +112,20 @@ export async function fetchBudget(sb: SupabaseClient, period_year: number): Prom
   };
 }
 
-/** Raw rows from the artist_size_band_medians view — passed through untouched. */
-export type BandRow = Record<string, unknown>;
-
 /** Size-band medians for one artist (All_UK scope). Never throws: [] on error. */
-export async function fetchArtistBands(sb: SupabaseClient, artist_id: string): Promise<BandRow[]> {
+export async function fetchArtistBands(sb: SupabaseClient, artist_id: string): Promise<BandMedianRow[]> {
   const { data: bandRows, error: bandErr } = await sb
     .from("artist_size_band_medians")
     .select("artist_id, band_label, band_lo, band_hi, sort_order, tier_scope, n, median_gbp, p25_gbp, p75_gbp, min_gbp, max_gbp, thin")
     .eq("artist_id", artist_id)
     .eq("tier_scope", "All_UK");
   if (bandErr) return [];
-  return bandRows ?? [];
+  return (bandRows ?? []) as BandMedianRow[];
 }
 
 export interface ScoreInputs {
   comps: CompRow[];
-  bands: BandRow[];
+  bands: BandMedianRow[];
   config: DeskConfig | null;
   params: DeskParams;
   budget: BudgetRow | null;

@@ -75,6 +75,8 @@ export interface DeskParams {
   n_gate: number;
   homogeneity_threshold: number;
   recency_cutoff: number;
+  band_n_gate?: number;      // default 5; min n for a band cell to scale a bid
+  band_factor_cap?: number;  // default 1.5; uplift cap. Downside uncapped by design
 }
 
 export interface BudgetRow {
@@ -122,24 +124,27 @@ export interface Anchor {
   iqr: [number, number] | null;
   comp_range: [number, number] | null;
   band_factor?: number | null;
+  basis?: "band-scaled" | "artist";
+  band_label?: string | null;
+  band_n?: number | null;
   flags: string[];
 }
 
-/** Raw row from the artist_size_band_medians view (passed through untouched). */
+/** One row of public.artist_size_band_medians (tier_scope='All_UK'). */
 export interface BandMedianRow {
-  artist_id?: string | null;
-  band_label?: string | null;
-  band_lo?: number | null;
-  band_hi?: number | null;
-  sort_order?: number | null;
-  tier_scope?: string | null;
-  n?: number | null;
-  median_gbp?: number | null;
-  p25_gbp?: number | null;
-  p75_gbp?: number | null;
-  min_gbp?: number | null;
-  max_gbp?: number | null;
-  thin?: boolean | null;
+  artist_id: string;
+  band_label: string;
+  band_lo: number;
+  band_hi: number | null;
+  sort_order: number;
+  tier_scope: string;
+  n: number;
+  median_gbp: number | null;
+  p25_gbp: number | null;
+  p75_gbp: number | null;
+  min_gbp: number | null;
+  max_gbp: number | null;
+  thin: boolean;
 }
 
 export interface Ladder {
@@ -204,6 +209,58 @@ export function sizeBand(cm: number): { label: string; lo: number; hi: number } 
   if (cm < 65) return { label: "50-65", lo: 50, hi: 65 };
   if (cm < 90) return { label: "65-90", lo: 65, hi: 90 };
   return { label: "90+", lo: 90, hi: Infinity };
+}
+
+/** Resolve the lot's band from the DB defs when supplied, else the code default. */
+export function resolveBand(cm: number, bands?: BandMedianRow[]): { label: string; lo: number; hi: number } {
+  if (bands && bands.length) {
+    const hit = bands.find(
+      (b) => b.tier_scope === "All_UK" && cm >= b.band_lo && (b.band_hi == null || cm < b.band_hi),
+    );
+    if (hit) return { label: hit.band_label, lo: hit.band_lo, hi: hit.band_hi ?? Infinity };
+  }
+  return sizeBand(cm);
+}
+
+interface BandFactor {
+  factor: number;
+  raw: number;
+  clamped: boolean;
+  n: number;
+  bound: [number, number] | null;
+}
+
+/**
+ * Size as a multiplicative factor on the tier median. Pooled All_UK basis:
+ * per-tier size gradients are unmeasurable on this corpus (QA 2026-08-27), so
+ * tier-independence of the gradient is an ASSUMPTION, stamped on the output.
+ * Uplift is capped; the sub-1.0 half is uncapped because it only lowers a bid.
+ */
+function bandFactor(
+  bands: BandMedianRow[] | undefined, artist_id: string, label: string,
+  gate: number, cap: number,
+): BandFactor | null {
+  if (!bands?.length) return null;
+  const cells = bands.filter((b) => b.artist_id === artist_id && b.tier_scope === "All_UK");
+  const cell = cells.find((b) => b.band_label === label);
+  if (!cell || cell.n < gate || cell.median_gbp == null) return null;
+
+  const all = cells.filter((b) => b.median_gbp != null && b.n > 0);
+  if (!all.length) return null;
+  const totN = all.reduce((s, b) => s + b.n, 0);
+  const artistLevel = all.reduce((s, b) => s + (b.median_gbp as number) * b.n, 0) / totN;
+  if (!(artistLevel > 0)) return null;
+
+  const raw = (cell.median_gbp as number) / artistLevel;
+  const factor = raw > cap ? cap : raw;
+  const bound: [number, number] | null =
+    cell.min_gbp != null && cell.max_gbp != null
+      ? [
+          Math.round((cell.min_gbp / (cell.median_gbp as number)) * 100) / 100,
+          Math.round((cell.max_gbp / (cell.median_gbp as number)) * 100) / 100,
+        ]
+      : null;
+  return { factor, raw: Math.round(raw * 100) / 100, clamped: raw > cap, n: cell.n, bound };
 }
 
 export function computeInZone(artist_id: string, subject: string): "In" | "Skip" {
@@ -376,7 +433,7 @@ export function scoreLot(b: ScoreBundle): Decision {
   if (lot.palette_keyword_only) flags.push("palette-keyword-only");
 
   // Stage 4: size band + per-name size floor
-  const band = sizeBand(lot.longest_cm);
+  const band = resolveBand(lot.longest_cm, b.bands);
   if (config.min_longest_cm != null && lot.longest_cm < config.min_longest_cm)
     return base({ decision: "Skip", binding_constraint: "size-floor", rationale: `${lot.longest_cm}cm below ${config.min_longest_cm}cm floor for this name.` });
 
@@ -413,14 +470,42 @@ export function scoreLot(b: ScoreBundle): Decision {
     });
   }
 
-  const fair_value = round(median(slice.values));
-  const p25 = round(quantile(slice.values, 0.25));
-  const p75 = round(quantile(slice.values, 0.75));
-  const lo = round(Math.min(...slice.values));
-  const hi = round(Math.max(...slice.values));
+  const tierMed = round(median(slice.values));
+  const anchorFlags = [...slice.flags];
+
+  // Size scaling. Rung 1 is already tier ∩ band, so scaling it would double-count.
+  if (!b.bands?.length) flags.push("bands-not-supplied:artist-median-basis");
+  const bf = slice.rung === 1
+    ? null
+    : bandFactor(b.bands, lot.artist_id, band.label,
+                 params.band_n_gate ?? 5, params.band_factor_cap ?? 1.5);
+
+  const fair_value = bf ? round(tierMed * bf.factor) : tierMed;
+
+  if (slice.rung === 1) {
+    anchorFlags.push(`band-native:${band.label}`);
+  } else if (bf) {
+    anchorFlags.push(
+      `band-scaled:${band.label}`, `band-factor:${bf.raw}`, "tier-gradient-assumed",
+      ...(bf.clamped ? [`band-factor-clamped:${bf.raw}->${bf.factor}`] : []),
+    );
+  } else {
+    anchorFlags.push(`band-thin-fallback:${band.label}`);
+  }
+
+  // Dispersion: within-band when scaled, so size does not re-enter quality_delta.
+  const vals = slice.values;
+  const lo = bf && bf.bound ? round(bf.bound[0] * fair_value) : round(Math.min(...vals));
+  const hi = bf && bf.bound ? round(bf.bound[1] * fair_value) : round(Math.max(...vals));
+
   const anchor: Anchor = {
-    fair_value, tier, rung: slice.rung, n: slice.values.length, confidence: slice.confidence,
-    iqr: [p25, p75], comp_range: [lo, hi], flags: slice.flags,
+    fair_value, tier, rung: slice.rung, n: slice.values.length,
+    confidence: bf && bf.clamped ? "Med" : slice.confidence,
+    iqr: [round(quantile(vals, 0.25)), round(quantile(vals, 0.75))],
+    comp_range: [lo, hi],
+    basis: bf ? "band-scaled" : "artist",
+    band_label: band.label, band_factor: bf ? bf.factor : null, band_n: bf ? bf.n : null,
+    flags: anchorFlags,
   };
 
   // Stage 6: quality delta (bounded)
