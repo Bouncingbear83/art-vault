@@ -18,11 +18,13 @@ export type Database = {
         Row: {
           arr_active_until: string | null
           artist_id: string
+          band_set: string
           commission_floor_gbp: number | null
           discount_class: string
           discount_override_firm: number | null
           discount_override_stretch: number | null
           floor_reviewed: string | null
+          inzone_finished_wc_median_gbp: number | null
           min_longest_cm: number | null
           note: string | null
           paper_ceiling_gbp: number | null
@@ -33,11 +35,13 @@ export type Database = {
         Insert: {
           arr_active_until?: string | null
           artist_id: string
+          band_set?: string
           commission_floor_gbp?: number | null
           discount_class?: string
           discount_override_firm?: number | null
           discount_override_stretch?: number | null
           floor_reviewed?: string | null
+          inzone_finished_wc_median_gbp?: number | null
           min_longest_cm?: number | null
           note?: string | null
           paper_ceiling_gbp?: number | null
@@ -48,11 +52,13 @@ export type Database = {
         Update: {
           arr_active_until?: string | null
           artist_id?: string
+          band_set?: string
           commission_floor_gbp?: number | null
           discount_class?: string
           discount_override_firm?: number | null
           discount_override_stretch?: number | null
           floor_reviewed?: string | null
+          inzone_finished_wc_median_gbp?: number | null
           min_longest_cm?: number | null
           note?: string | null
           paper_ceiling_gbp?: number | null
@@ -82,6 +88,13 @@ export type Database = {
             referencedRelation: "book_screen"
             referencedColumns: ["artist_id"]
           },
+          {
+            foreignKeyName: "artist_desk_config_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: true
+            referencedRelation: "play_type_audit"
+            referencedColumns: ["artist_id"]
+          },
         ]
       }
       artists: {
@@ -92,10 +105,12 @@ export type Database = {
           dates: string | null
           death_year: number | null
           display_name: string
+          mutualart_url: string | null
           palette_pref: string | null
           paper_sleeve: boolean | null
           play_type: Database["public"]["Enums"]["play_type_t"] | null
           tier: string | null
+          tracked: boolean
           updated_at: string | null
         }
         Insert: {
@@ -105,10 +120,12 @@ export type Database = {
           dates?: string | null
           death_year?: number | null
           display_name: string
+          mutualart_url?: string | null
           palette_pref?: string | null
           paper_sleeve?: boolean | null
           play_type?: Database["public"]["Enums"]["play_type_t"] | null
           tier?: string | null
+          tracked?: boolean
           updated_at?: string | null
         }
         Update: {
@@ -118,10 +135,12 @@ export type Database = {
           dates?: string | null
           death_year?: number | null
           display_name?: string
+          mutualart_url?: string | null
           palette_pref?: string | null
           paper_sleeve?: boolean | null
           play_type?: Database["public"]["Enums"]["play_type_t"] | null
           tier?: string | null
+          tracked?: boolean
           updated_at?: string | null
         }
         Relationships: []
@@ -368,6 +387,13 @@ export type Database = {
             referencedRelation: "book_screen"
             referencedColumns: ["artist_id"]
           },
+          {
+            foreignKeyName: "comps_raw_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "play_type_audit"
+            referencedColumns: ["artist_id"]
+          },
         ]
       }
       comps_stage: {
@@ -442,6 +468,8 @@ export type Database = {
       desk_params: {
         Row: {
           arr_rate: number
+          band_factor_cap: number
+          band_n_gate: number
           bp_pct_default: number
           collector_discount_firm: number
           collector_discount_stretch: number
@@ -453,11 +481,14 @@ export type Database = {
           params_id: string
           recency_cutoff: number
           remote_haircut: number
+          sleeve_ceiling_multiple: number
           stale_haircut: number
           vat_premium: number
         }
         Insert: {
           arr_rate?: number
+          band_factor_cap?: number
+          band_n_gate?: number
           bp_pct_default?: number
           collector_discount_firm: number
           collector_discount_stretch: number
@@ -469,11 +500,14 @@ export type Database = {
           params_id?: string
           recency_cutoff?: number
           remote_haircut?: number
+          sleeve_ceiling_multiple?: number
           stale_haircut?: number
           vat_premium?: number
         }
         Update: {
           arr_rate?: number
+          band_factor_cap?: number
+          band_n_gate?: number
           bp_pct_default?: number
           collector_discount_firm?: number
           collector_discount_stretch?: number
@@ -485,6 +519,7 @@ export type Database = {
           params_id?: string
           recency_cutoff?: number
           remote_haircut?: number
+          sleeve_ceiling_multiple?: number
           stale_haircut?: number
           vat_premium?: number
         }
@@ -681,6 +716,13 @@ export type Database = {
             referencedRelation: "book_screen"
             referencedColumns: ["artist_id"]
           },
+          {
+            foreignKeyName: "lots_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "play_type_audit"
+            referencedColumns: ["artist_id"]
+          },
         ]
       }
       note_tags: {
@@ -800,6 +842,13 @@ export type Database = {
             referencedColumns: ["artist_id"]
           },
           {
+            foreignKeyName: "notes_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "play_type_audit"
+            referencedColumns: ["artist_id"]
+          },
+          {
             foreignKeyName: "notes_supersedes_fkey"
             columns: ["supersedes"]
             isOneToOne: false
@@ -886,6 +935,13 @@ export type Database = {
             referencedColumns: ["artist_id"]
           },
           {
+            foreignKeyName: "positions_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "play_type_audit"
+            referencedColumns: ["artist_id"]
+          },
+          {
             foreignKeyName: "positions_lot_note_id_fkey"
             columns: ["lot_note_id"]
             isOneToOne: false
@@ -907,6 +963,33 @@ export type Database = {
             referencedColumns: ["params_id"]
           },
         ]
+      }
+      size_band_defs: {
+        Row: {
+          band_label: string
+          band_set: string
+          hi: number | null
+          lo: number
+          note: string | null
+          sort_order: number
+        }
+        Insert: {
+          band_label: string
+          band_set?: string
+          hi?: number | null
+          lo: number
+          note?: string | null
+          sort_order: number
+        }
+        Update: {
+          band_label?: string
+          band_set?: string
+          hi?: number | null
+          lo?: number
+          note?: string | null
+          sort_order?: number
+        }
+        Relationships: []
       }
       triggers: {
         Row: {
@@ -961,6 +1044,13 @@ export type Database = {
             referencedRelation: "book_screen"
             referencedColumns: ["artist_id"]
           },
+          {
+            foreignKeyName: "triggers_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "play_type_audit"
+            referencedColumns: ["artist_id"]
+          },
         ]
       }
       vocab_note_tag: {
@@ -988,25 +1078,69 @@ export type Database = {
           artist_id: string | null
           buy_edge_flag: string | null
           buy_regional_realisation: number | null
+          ceiling_breach: boolean | null
           data_confidence: Database["public"]["Enums"]["confidence_t"] | null
           dates: string | null
           display_name: string | null
           exit_vs_regional_spread: number | null
           in_zone_realisation: number | null
+          level_read: Database["public"]["Enums"]["level_t"] | null
           matched_n: number | null
           matched_spread: number | null
           median_realisation: number | null
           median_uk_hammer_gbp: number | null
+          mutualart_url: string | null
           n_buy_regional: number | null
           n_exit_strong: number | null
           n_uk_auto_oil: number | null
           open_flags: number | null
           palette_pref: string | null
           play_type: Database["public"]["Enums"]["play_type_t"] | null
+          price_cagr_full: number | null
           sell_through_pct: number | null
+          sell_through_trend: string | null
           spread_trusted: boolean | null
           thin_exit_flag: boolean | null
           tier: string | null
+          zone_conf: string | null
+          zone_fitness: string | null
+        }
+        Relationships: []
+      }
+      artist_size_band_medians: {
+        Row: {
+          artist_id: string | null
+          band_hi: number | null
+          band_label: string | null
+          band_lo: number | null
+          max_gbp: number | null
+          median_gbp: number | null
+          median_recent_gbp: number | null
+          min_gbp: number | null
+          n: number | null
+          n_recent: number | null
+          p25_gbp: number | null
+          p75_gbp: number | null
+          scope_order: number | null
+          sort_order: number | null
+          thin: boolean | null
+          tier_scope: string | null
+        }
+        Relationships: []
+      }
+      artist_zone_fitness: {
+        Row: {
+          artist_id: string | null
+          n_in: number | null
+          n_out: number | null
+          real_in: number | null
+          real_out: number | null
+          real_premium: number | null
+          st_in: number | null
+          st_out: number | null
+          st_premium_pp: number | null
+          zone_conf: string | null
+          zone_fitness: string | null
         }
         Relationships: []
       }
@@ -1016,6 +1150,7 @@ export type Database = {
           artist_id: string | null
           buy_edge_flag: string | null
           buy_regional_realisation: number | null
+          ceiling_breach: boolean | null
           comps_updated_at: string | null
           data_confidence: Database["public"]["Enums"]["confidence_t"] | null
           dates: string | null
@@ -1025,16 +1160,22 @@ export type Database = {
           matched_spread: number | null
           median_realisation: number | null
           median_uk_hammer_gbp: number | null
+          mutualart_url: string | null
           n_buy_regional: number | null
           n_exit_strong: number | null
           open_flags: number | null
           palette_pref: string | null
           paper_sleeve: boolean | null
           play_type: Database["public"]["Enums"]["play_type_t"] | null
+          price_cagr_full: number | null
           sell_through_pct: number | null
+          sell_through_trend: string | null
           spread_trusted: boolean | null
           thin_exit_flag: boolean | null
           tier: string | null
+          zone_conf: string | null
+          zone_fitness: string | null
+          zone_sellthrough_premium_pp: number | null
         }
         Relationships: []
       }
@@ -1046,6 +1187,7 @@ export type Database = {
           artist_id: string | null
           buy_edge_flag: string | null
           buy_regional_realisation: number | null
+          ceiling_breach: boolean | null
           data_confidence: Database["public"]["Enums"]["confidence_t"] | null
           exit_strong_n: number | null
           exit_vs_regional_spread: number | null
@@ -1098,8 +1240,24 @@ export type Database = {
           params_id: string | null
           recency_cutoff: number | null
           remote_haircut: number | null
+          sleeve_ceiling_multiple: number | null
           stale_haircut: number | null
           vat_premium: number | null
+        }
+        Relationships: []
+      }
+      play_type_audit: {
+        Row: {
+          artist_id: string | null
+          current_play: Database["public"]["Enums"]["play_type_t"] | null
+          display_name: string | null
+          level_read: Database["public"]["Enums"]["level_t"] | null
+          median_uk_hammer_gbp: number | null
+          n_uk_auto_oil: number | null
+          paper_sleeve: boolean | null
+          suggested_play: string | null
+          zone_conf: string | null
+          zone_fitness: string | null
         }
         Relationships: []
       }
@@ -1114,6 +1272,7 @@ export type Database = {
     }
     Functions: {
       _recompute_budget_year: { Args: { yr: number }; Returns: undefined }
+      apply_sleeve_multiple: { Args: { p_multiple: number }; Returns: number }
       is_owner: { Args: never; Returns: boolean }
       update_note: {
         Args: {
