@@ -211,6 +211,58 @@ export function sizeBand(cm: number): { label: string; lo: number; hi: number } 
   return { label: "90+", lo: 90, hi: Infinity };
 }
 
+/** Resolve the lot's band from the DB defs when supplied, else the code default. */
+export function resolveBand(cm: number, bands?: BandMedianRow[]): { label: string; lo: number; hi: number } {
+  if (bands && bands.length) {
+    const hit = bands.find(
+      (b) => b.tier_scope === "All_UK" && cm >= b.band_lo && (b.band_hi == null || cm < b.band_hi),
+    );
+    if (hit) return { label: hit.band_label, lo: hit.band_lo, hi: hit.band_hi ?? Infinity };
+  }
+  return sizeBand(cm);
+}
+
+interface BandFactor {
+  factor: number;
+  raw: number;
+  clamped: boolean;
+  n: number;
+  bound: [number, number] | null;
+}
+
+/**
+ * Size as a multiplicative factor on the tier median. Pooled All_UK basis:
+ * per-tier size gradients are unmeasurable on this corpus (QA 2026-08-27), so
+ * tier-independence of the gradient is an ASSUMPTION, stamped on the output.
+ * Uplift is capped; the sub-1.0 half is uncapped because it only lowers a bid.
+ */
+function bandFactor(
+  bands: BandMedianRow[] | undefined, artist_id: string, label: string,
+  gate: number, cap: number,
+): BandFactor | null {
+  if (!bands?.length) return null;
+  const cells = bands.filter((b) => b.artist_id === artist_id && b.tier_scope === "All_UK");
+  const cell = cells.find((b) => b.band_label === label);
+  if (!cell || cell.n < gate || cell.median_gbp == null) return null;
+
+  const all = cells.filter((b) => b.median_gbp != null && b.n > 0);
+  if (!all.length) return null;
+  const totN = all.reduce((s, b) => s + b.n, 0);
+  const artistLevel = all.reduce((s, b) => s + (b.median_gbp as number) * b.n, 0) / totN;
+  if (!(artistLevel > 0)) return null;
+
+  const raw = (cell.median_gbp as number) / artistLevel;
+  const factor = raw > cap ? cap : raw;
+  const bound: [number, number] | null =
+    cell.min_gbp != null && cell.max_gbp != null
+      ? [
+          Math.round((cell.min_gbp / (cell.median_gbp as number)) * 100) / 100,
+          Math.round((cell.max_gbp / (cell.median_gbp as number)) * 100) / 100,
+        ]
+      : null;
+  return { factor, raw: Math.round(raw * 100) / 100, clamped: raw > cap, n: cell.n, bound };
+}
+
 export function computeInZone(artist_id: string, subject: string): "In" | "Skip" {
   const aid = artist_id.toLowerCase();
   for (const o of ZONE_OVERRIDES) if (aid.includes(o.token) && o.subject === subject) return o.zone;
