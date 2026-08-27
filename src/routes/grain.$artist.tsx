@@ -26,21 +26,32 @@ export const Route = createFileRoute("/grain/$artist")({
 function GrainPage() {
   const { artist } = Route.useParams();
   const [rows, setRows] = useState<GrainRow[] | null>(null);
+  const [bands, setBands] = useState<BandRow[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const { data, error } = await supabase
-        .from("comps")
-        .select(
-          "artist_id, medium_class, medium_raw, vtype_resolved, hammer_equiv_gbp, longest_cm, status, in_zone, sale_date, sheet_grade, title, authorship, venue, est_mid_gbp, ref, auto_ref, times_seen, repeat_flag, venue_canonical, dup_flag"
-        )
-        .eq("artist_id", artist)
-        .limit(2000);
+      const [{ data, error }, { data: bandData }] = await Promise.all([
+        supabase
+          .from("comps")
+          .select(
+            "artist_id, medium_class, medium_raw, vtype_resolved, hammer_equiv_gbp, longest_cm, status, in_zone, sale_date, sheet_grade, title, authorship, venue, est_mid_gbp, ref, auto_ref, times_seen, repeat_flag, venue_canonical, dup_flag"
+          )
+          .eq("artist_id", artist)
+          .limit(2000),
+        supabase
+          .from("artist_size_band_medians")
+          .select("band_label, band_lo, band_hi, sort_order, n, median_gbp, thin")
+          .eq("artist_id", artist)
+          .eq("tier_scope", "All_UK")
+          .neq("band_label", "ALL")
+          .order("sort_order"),
+      ]);
       if (cancelled) return;
       if (error) setError(error.message);
       else setRows((data ?? []) as GrainRow[]);
+      setBands((bandData ?? []) as BandRow[]);
     })();
     return () => {
       cancelled = true;
