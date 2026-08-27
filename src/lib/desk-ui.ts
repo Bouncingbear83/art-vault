@@ -105,6 +105,24 @@ export interface CommitActuals {
   condition_status: string;
   buy_date: string;
   rationale: string;
+  commit_override_reason?: string;
+}
+
+/** Ladder guard shared by the UI and the MCP commit path. */
+export function commitLadderGuard(
+  hammer: number,
+  firm: number | null,
+  stretch: number | null,
+): { tooHigh: boolean; tooLow: boolean; message: string | null } {
+  const ceiling = stretch ?? firm;
+  const tooHigh = ceiling != null && hammer > ceiling;
+  const tooLow = firm != null && hammer < firm * 0.25;
+  const message = tooHigh
+    ? `hammer £${hammer} exceeds the scored ${stretch != null ? "stretch" : "firm"} bid of £${ceiling}; supply a reason to record it anyway`
+    : tooLow
+      ? `hammer £${hammer} is under a quarter of the firm bid of £${firm}; this reads as a stale or mistyped figure. Supply a reason if it is real`
+      : null;
+  return { tooHigh, tooLow, message };
 }
 
 export interface CommitResult {
@@ -177,10 +195,19 @@ export async function commitLotClient(f: LotForm, act: CommitActuals): Promise<C
   const sale_key = d.lot.sale_key;
   const buy_date = act.buy_date || todayISO();
   const firm = d.ladder.firm;
+  const stretch = d.ladder.stretch;
   const over = firm != null && act.hammer_paid_gbp > firm;
+
+  // Refusal gate before any write: a wrong hammer propagates to positions,
+  // all_in_gbp and, via the positions trigger, to budget.committed_gbp.
+  const guard = commitLadderGuard(act.hammer_paid_gbp, firm, stretch);
+  const outside = guard.tooHigh || guard.tooLow;
+  if (outside && !act.commit_override_reason?.trim()) throw new Error(guard.message!);
+
   const actuals =
     `ACTUALS: hammer £${act.hammer_paid_gbp}, all-in £${all_in}, K_buy ${K}, house ${act.house || f.venue}.` +
-    (over ? ` FLAG: paid above firm £${firm}.` : "");
+    (over ? ` FLAG: paid above firm £${firm}.` : "") +
+    (outside ? `\n\nFLAGS: commit outside ladder. ${act.commit_override_reason!.trim()}` : "");
 
   // one Lot note per lot: the verdict note becomes the committed record
   const note_id = await upsertLotNote({

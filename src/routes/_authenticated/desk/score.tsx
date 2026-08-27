@@ -1,12 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/art/app-shell";
 import { Chip, EmptyState, Stat } from "@/components/art/primitives";
 import { fetchArtistOptions, gbp } from "@/lib/art360";
 import {
-  AUTHORSHIPS, PALETTES, SUBJECTS, commitLotClient, emptyLot, logVerdict, scoreLotClient,
+  AUTHORSHIPS, PALETTES, SUBJECTS, commitLadderGuard, commitLotClient, emptyLot, logVerdict, scoreLotClient,
   type CommitActuals, type LotForm,
 } from "@/lib/desk-ui";
 import type { Decision } from "@/lib/desk/score";
@@ -234,11 +234,22 @@ function ResultPanel({ result, form }: { result: Decision; form: LotForm }) {
 
 function CommitPanel({ result, form }: { result: Decision; form: LotForm }) {
   const qc = useQueryClient();
+  const [house, setHouse] = useState(form.venue);
+  // Reset the actuals whenever a new Decision arrives: a stale hammer figure
+  // attached to a fresh ladder is the one number the operator must retype.
   const [act, setAct] = useState<CommitActuals>({
-    hammer_paid_gbp: result.ladder.firm ?? 0, house: form.venue, condition_status: "", buy_date: "", rationale: "",
+    hammer_paid_gbp: 0, house, condition_status: "", buy_date: "", rationale: "", commit_override_reason: "",
   });
+  useEffect(() => {
+    setAct((p) => ({ ...p, hammer_paid_gbp: 0, condition_status: "", commit_override_reason: "" }));
+  }, [result]);
+
+  const guard = commitLadderGuard(act.hammer_paid_gbp, result.ladder.firm, result.ladder.stretch);
+  const outside = act.hammer_paid_gbp > 0 && (guard.tooHigh || guard.tooLow);
+  const needsReason = outside && !act.commit_override_reason?.trim();
+
   const commit = useMutation({
-    mutationFn: () => commitLotClient(form, act),
+    mutationFn: () => commitLotClient(form, { ...act, house }),
     onSuccess: (r) => {
       toast.success(`Committed. All-in ${gbp(r.all_in_gbp)}.${r.over_walkaway ? " Paid above firm." : ""}`);
       qc.invalidateQueries({ queryKey: ["positions"] });
@@ -258,13 +269,24 @@ function CommitPanel({ result, form }: { result: Decision; form: LotForm }) {
         </label>
         <label className="block">
           <span className="label-caps">House</span>
-          <input className={inputCls} value={act.house} onChange={(e) => setAct((p) => ({ ...p, house: e.target.value }))} />
+          <input className={inputCls} value={house} onChange={(e) => setHouse(e.target.value)} />
         </label>
       </div>
       <input className={inputCls} value={act.condition_status} onChange={(e) => setAct((p) => ({ ...p, condition_status: e.target.value }))} placeholder="condition as bought" />
+      {outside && (
+        <div className="space-y-2 border-l-2 border-ochre pl-3">
+          <p className="text-xs text-ochre">{guard.message}</p>
+          <input
+            className={inputCls}
+            value={act.commit_override_reason ?? ""}
+            onChange={(e) => setAct((p) => ({ ...p, commit_override_reason: e.target.value }))}
+            placeholder="reason to commit outside the ladder (required)"
+          />
+        </div>
+      )}
       <button
         onClick={() => commit.mutate()}
-        disabled={commit.isPending || !act.hammer_paid_gbp}
+        disabled={commit.isPending || !act.hammer_paid_gbp || needsReason}
         className="label-caps w-full rounded-sm border border-border px-4 py-2.5 transition-colors hover:border-harbour hover:text-harbour disabled:opacity-50"
       >
         {commit.isPending ? "Committing…" : "Commit to ledger"}

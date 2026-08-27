@@ -42,6 +42,8 @@ export default defineTool({
     condition_status: z.string().optional().describe("Condition as bought, for the ledger."),
     buy_date: z.string().optional().describe("ISO; defaults to today."),
     rationale: z.string().optional().describe("The glad-to-own line; else the scorer's."),
+    commit_override_reason: z.string().optional()
+      .describe("Required to commit outside the scored ladder. Recorded on the position."),
   },
   annotations: { readOnlyHint: false, destructiveHint: false },
   handler: async (a, ctx) => {
@@ -94,6 +96,24 @@ export default defineTool({
     const flags = [...d.flags];
     const firm = d.ladder.firm;
     const stretch = d.ladder.stretch;
+
+    // Refusal gate: a wrong hammer propagates to positions, all_in_gbp and, via the
+    // positions trigger, to budget.committed_gbp, where it silently constrains every
+    // later bid. Refuse rather than guess.
+    const ceiling = stretch ?? firm;
+    const tooHigh = ceiling != null && a.hammer_paid_gbp > ceiling;
+    const tooLow = firm != null && a.hammer_paid_gbp < firm * 0.25;
+    if ((tooHigh || tooLow) && !a.commit_override_reason) {
+      throw new ToolError(
+        tooHigh
+          ? `hammer £${a.hammer_paid_gbp} exceeds the scored ${stretch != null ? "stretch" : "firm"} bid of £${ceiling}; supply commit_override_reason to record it anyway`
+          : `hammer £${a.hammer_paid_gbp} is under a quarter of the firm bid of £${firm}; this reads as a stale or mistyped figure. Supply commit_override_reason if it is real`,
+      );
+    }
+    if (a.commit_override_reason && (tooHigh || tooLow)) {
+      flags.push(`commit-outside-ladder:${a.hammer_paid_gbp}-vs-firm-${firm}`);
+    }
+
     if (firm != null && a.hammer_paid_gbp > firm) flags.push(`paid-above-firm:${a.hammer_paid_gbp}>${firm}`);
     if (stretch != null && a.hammer_paid_gbp > stretch) flags.push(`paid-above-stretch:${a.hammer_paid_gbp}>${stretch}`);
     if (d.decision !== "Buy") flags.push(`committed-despite:${d.binding_constraint ?? d.decision}`);
@@ -105,7 +125,10 @@ export default defineTool({
     // Lot note (I.5 body grammar), reusing the scorer's body but stamping the actuals.
     const body =
       (d.vault?.note_body ?? `GRAIN: ${d.lane} lane.\n\nFINDING: fair £${d.anchor.fair_value ?? "-"}.`) +
-      `\n\nACTUALS: hammer £${a.hammer_paid_gbp}, all-in £${all_in}, K_buy ${K}, house ${a.house ?? a.venue}.`;
+      `\n\nACTUALS: hammer £${a.hammer_paid_gbp}, all-in £${all_in}, K_buy ${K}, house ${a.house ?? a.venue}.` +
+      (a.commit_override_reason && (tooHigh || tooLow)
+        ? `\n\nFLAGS: commit outside ladder. ${a.commit_override_reason}`
+        : "");
     const valid_to = d.vault?.valid_to ?? null;
 
     const { data: note, error: nErr } = await sb

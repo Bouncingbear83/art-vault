@@ -602,6 +602,10 @@
             "rationale": {
               "description": "The glad-to-own line; else the scorer's.",
               "type": "string"
+            },
+            "commit_override_reason": {
+              "description": "Required to commit outside the scored ladder. Recorded on the position.",
+              "type": "string"
             }
           },
           "required": [
