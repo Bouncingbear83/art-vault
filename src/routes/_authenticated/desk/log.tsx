@@ -1,9 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 import { AppShell } from "@/components/art/app-shell";
 import { Chip, EmptyState, Stat } from "@/components/art/primitives";
 import { formatDate, gbp } from "@/lib/art360";
-import { fetchDealLog, summariseDealLog, type DealLogRow } from "@/lib/desk-ui";
+import { fetchDealLog, recordLotResult, summariseDealLog, type DealLogRow } from "@/lib/desk-ui";
 
 export const Route = createFileRoute("/_authenticated/desk/log")({
   head: () => ({
@@ -40,6 +41,70 @@ function VsFirm({ row }: { row: DealLogRow }) {
   return <span className={`num text-sm ${tone}`}>{v < 0 ? "−" : "+"}{gbp(Math.abs(v))}</span>;
 }
 
+/**
+ * Result capture. Without this the calibration figures are permanently zero:
+ * missed_by needs the realised hammer of lots we did NOT buy, and nothing else
+ * in the app writes it. Only offered on a lot whose sale has passed, is not
+ * already bought, and has no result in; everything else renders read-only.
+ */
+function CaptureResult({ row }: { row: DealLogRow }) {
+  const qc = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const [value, setValue] = useState("");
+  const save = useMutation({
+    mutationFn: (hammer: number | null) =>
+      recordLotResult({ sale_key: row.sale_key, result_hammer_gbp: hammer }),
+    onSuccess: () => { setOpen(false); void qc.invalidateQueries({ queryKey: ["deal-log"] }); },
+  });
+
+  if (!open) {
+    return (
+      <button type="button" onClick={() => setOpen(true)} className="label-caps text-harbour hover:underline">
+        record result
+      </button>
+    );
+  }
+  const n = Number(value.replace(/[^0-9.]/g, ""));
+  const valid = value.trim() !== "" && Number.isFinite(n) && n > 0;
+  return (
+    <div className="flex flex-col items-end gap-2">
+      <input
+        autoFocus
+        inputMode="decimal"
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        placeholder="hammer £"
+        aria-label="Realised hammer in GBP"
+        className="num w-28 rounded-sm border border-border bg-transparent px-2 py-1 text-right text-sm"
+      />
+      <div className="flex items-center gap-3">
+        <button
+          type="button" disabled={!valid || save.isPending}
+          onClick={() => save.mutate(Math.round(n))}
+          className="label-caps text-harbour disabled:opacity-40 hover:underline"
+        >
+          save
+        </button>
+        <button
+          type="button" disabled={save.isPending}
+          onClick={() => save.mutate(null)}
+          title="Bought in or withdrawn: recorded as no result, excluded from calibration."
+          className="label-caps text-muted-foreground hover:underline"
+        >
+          unsold
+        </button>
+        <button type="button" onClick={() => { setOpen(false); setValue(""); }} className="label-caps text-muted-foreground hover:underline">
+          cancel
+        </button>
+      </div>
+      {save.error && <span className="text-xs text-destructive">{(save.error as Error).message}</span>}
+    </div>
+  );
+}
+
+const salePassed = (d: string | null): boolean =>
+  !!d && d < new Date().toISOString().slice(0, 10);
+
 function DealLog() {
   const { data, isLoading, error } = useQuery({ queryKey: ["deal-log"], queryFn: fetchDealLog });
   const rows = data ?? [];
@@ -72,8 +137,9 @@ function DealLog() {
           </div>
           {s.awaitingResult > 0 && (
             <p className="mb-6 text-xs text-muted-foreground">
-              {s.awaitingResult} called {s.awaitingResult === 1 ? "lot has" : "lots have"} no post-sale result
-              captured yet; those rows are excluded from the calibration figures above rather than assumed.
+              {s.awaitingResult} past-sale {s.awaitingResult === 1 ? "lot has" : "lots have"} no result captured
+              yet, so {s.awaitingResult === 1 ? "it is" : "they are"} excluded from the figures above rather
+              than assumed. Record them below to close the loop.
             </p>
           )}
 
@@ -120,7 +186,11 @@ function DealLog() {
                     <td className="num py-3 pr-4 text-right text-muted-foreground">{gbp(r.fair_value_gbp)}</td>
                     <td className="num py-3 pr-4 text-right text-foreground">{gbp(r.ladder_firm_gbp)}</td>
                     <td className="num py-3 pr-4 text-right text-foreground">{gbp(r.result_hammer_gbp)}</td>
-                    <td className="py-3 text-right"><VsFirm row={r} /></td>
+                    <td className="py-3 text-right">
+                      {r.result_hammer_gbp == null && r.status !== "won" && salePassed(r.sale_date)
+                        ? <CaptureResult row={r} />
+                        : <VsFirm row={r} />}
+                    </td>
                   </tr>
                 ))}
               </tbody>
