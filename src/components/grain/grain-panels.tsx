@@ -701,14 +701,12 @@ function RealisationPanel({ rows }: { rows: GrainRow[] }) {
 
 // ---------- size-band spread table (§H test 3) ----------
 
-function SizeBandTable({ rows }: { rows: GrainRow[] }) {
+function SizeBandTable({ rows, bands }: { rows: GrainRow[]; bands: BandRow[] }) {
   // rows = autograph oil, already filtered by caller
-  const bands = [
-    { label: "<40cm", lo: 0, hi: 40 },
-    { label: "40–60cm", lo: 40, hi: 60 },
-    { label: "60–80cm", lo: 60, hi: 80 },
-    { label: "80cm+", lo: 80, hi: Infinity },
-  ];
+  const bandDefs = bands.length
+    ? bands.map((bd) => ({ label: bd.band_label, lo: bd.band_lo, hi: bd.band_hi ?? Infinity }))
+    : [{ label: "<45", lo: 0, hi: 45 }, { label: "45-60", lo: 45, hi: 60 },
+       { label: "60-90", lo: 60, hi: 90 }, { label: "90+", lo: 90, hi: Infinity }];
   const sized = rows.filter((r) => r.longest_cm != null && (r.longest_cm as number) > 0);
   const rowsOut = bands.map((b) => {
     const inB = sized.filter((r) => (r.longest_cm as number) >= b.lo && (r.longest_cm as number) < b.hi);
