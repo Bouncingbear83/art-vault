@@ -594,7 +594,7 @@ function SizeScatter({ rows, bands, showBands }: { rows: GrainRow[]; bands: Band
   );
 }
 
-function SizeScatterPanel({ rows }: { rows: GrainRow[] }) {
+function SizeScatterPanel({ rows, bands }: { rows: GrainRow[]; bands: BandRow[] }) {
   const [med, setMed] = useState<"all" | "Oil" | "Watercolour">("all");
   const filtered = med === "all" ? rows : rows.filter((r) => r.medium_class === med);
   return (
@@ -603,7 +603,7 @@ function SizeScatterPanel({ rows }: { rows: GrainRow[] }) {
         <h2 className="text-xs tracking-widest text-stone-500">SIZE VS PRICE (IF EXIT DOTS SIT UP AND RIGHT, SPREAD IS SIZE-MIX)</h2>
         <MediumToggle med={med} setMed={setMed} />
       </div>
-      <SizeScatter rows={filtered} />
+      <SizeScatter rows={filtered} bands={bands} showBands={med !== "Watercolour"} />
       <Caption rows={filtered.filter((r) => r.longest_cm != null && (r.longest_cm as number) > 0)} />
       <Key
         items={[
@@ -611,6 +611,7 @@ function SizeScatterPanel({ rows }: { rows: GrainRow[] }) {
           { colour: TIER_DOT.Straddle, label: "Straddle" },
           { colour: TIER_DOT.Exit_Strong, label: "Exit strong" },
           { colour: SUPPORT, label: "Board/panel (condition risk)", shape: "diamond" },
+          { colour: "#44403c", label: "Band median, in-zone UK oil (dashed = thin, n<5)", shape: "line" },
         ]}
       />
     </section>
