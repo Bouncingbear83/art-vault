@@ -155,6 +155,7 @@ export interface ScoreBundle {
   config: DeskConfig;
   params: DeskParams;
   budget: BudgetRow | null;
+  bands?: BandMedianRow[]
   today?: string; // ISO; defaults to now (injectable for tests)
 }
 
@@ -485,7 +486,8 @@ export function scoreLot(b: ScoreBundle): Decision {
 
   // Stage 13: output
   const rationale =
-    `${anchor.confidence} anchor (rung ${slice.rung}, n=${anchor.n}, ${tier}); fair £${fair_value}, ` +
+    `${anchor.confidence} anchor (rung ${slice.rung}, n=${anchor.n}, ${tier}` +
+    `${anchor.band_factor ? `, ${band.label} ×${anchor.band_factor}` : ""}); fair £${fair_value}, ` +
     `δ ${qd}${qdOverride ? " (override)" : ""}; firm £${firm}${stretch ? `, stretch £${stretch}` : ""} ` +
     `(all-in £${all_in_at_firm}); glad-to-own at a fair price.`;
 
