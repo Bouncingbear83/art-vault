@@ -417,8 +417,12 @@ export function scoreLot(b: ScoreBundle): Decision {
   if (lot.authorship !== AUTOGRAPH)
     return base({ decision: "Skip", binding_constraint: "authorship", rationale: `Not autograph (${lot.authorship}); excluded.` });
 
+  // Same rule as the paper lane below: sleeve membership is the CEILING, not the
+  // paper_primary display flag. Keyed on paper_primary, a Wyld watercolour was
+  // skipped here at "medium" before it ever reached scorePaper.
   const isPaper = medium === WATERCOLOUR;
-  if (medium !== OIL && !(isPaper && config.paper_primary))
+  const inSleeve = isPaper && config.paper_ceiling_gbp != null;
+  if (medium !== OIL && !inSleeve)
     return base({ decision: "Skip", binding_constraint: "medium", rationale: `${medium} outside oil mandate / paper sleeve.` });
 
   if (zone === "Skip")
@@ -661,7 +665,15 @@ function scorePaper(
   let firm: number | null = null;
   let rationale = "";
 
-  if (!config.paper_primary || ceiling == null) { binding = "paper-not-eligible"; rationale = "Not a paper-sleeve name."; }
+  // Eligibility is the CEILING, not paper_primary. `paper_primary` is a DISPLAY
+  // flag (does the grain page suppress the oil view?) and Wyld carries it false
+  // by design because his oils are the liked pictures. Gating eligibility on it
+  // made every Wyld finished sheet return "paper-not-eligible", so his £1,000
+  // ceiling was unreachable through the scorer: mandate v7.3, "downstream must
+  // key the sleeve off the in-zone finished WC median, NOT paper_primary, or it
+  // drops Wyld's ceiling". paper_ceiling_gbp is null for every non-sleeve name,
+  // so the ceiling test is the correct and sufficient gate.
+  if (ceiling == null) { binding = "paper-not-eligible"; rationale = "No paper ceiling set for this name."; }
   else if (!finished) { binding = "sheet-grade"; rationale = "Paper sleeve requires a Finished sheet."; }
   else if (zone === "Skip") { binding = "subject-zone"; rationale = "Out of zone."; }
   else if (!sighted && ceiling > 1500) { binding = "condition-report"; rationale = `Unsighted paper with ceiling £${ceiling} (> £1,500) needs a report before any bid.`; }
