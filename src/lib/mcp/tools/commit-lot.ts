@@ -96,6 +96,24 @@ export default defineTool({
     const flags = [...d.flags];
     const firm = d.ladder.firm;
     const stretch = d.ladder.stretch;
+
+    // Refusal gate: a wrong hammer propagates to positions, all_in_gbp and, via the
+    // positions trigger, to budget.committed_gbp, where it silently constrains every
+    // later bid. Refuse rather than guess.
+    const ceiling = stretch ?? firm;
+    const tooHigh = ceiling != null && a.hammer_paid_gbp > ceiling;
+    const tooLow = firm != null && a.hammer_paid_gbp < firm * 0.25;
+    if ((tooHigh || tooLow) && !a.commit_override_reason) {
+      throw new ToolError(
+        tooHigh
+          ? `hammer £${a.hammer_paid_gbp} exceeds the scored ${stretch != null ? "stretch" : "firm"} bid of £${ceiling}; supply commit_override_reason to record it anyway`
+          : `hammer £${a.hammer_paid_gbp} is under a quarter of the firm bid of £${firm}; this reads as a stale or mistyped figure. Supply commit_override_reason if it is real`,
+      );
+    }
+    if (a.commit_override_reason && (tooHigh || tooLow)) {
+      flags.push(`commit-outside-ladder:${a.hammer_paid_gbp}-vs-firm-${firm}`);
+    }
+
     if (firm != null && a.hammer_paid_gbp > firm) flags.push(`paid-above-firm:${a.hammer_paid_gbp}>${firm}`);
     if (stretch != null && a.hammer_paid_gbp > stretch) flags.push(`paid-above-stretch:${a.hammer_paid_gbp}>${stretch}`);
     if (d.decision !== "Buy") flags.push(`committed-despite:${d.binding_constraint ?? d.decision}`);
