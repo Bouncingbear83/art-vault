@@ -125,7 +125,10 @@ export default defineTool({
     // Lot note (I.5 body grammar), reusing the scorer's body but stamping the actuals.
     const body =
       (d.vault?.note_body ?? `GRAIN: ${d.lane} lane.\n\nFINDING: fair £${d.anchor.fair_value ?? "-"}.`) +
-      `\n\nACTUALS: hammer £${a.hammer_paid_gbp}, all-in £${all_in}, K_buy ${K}, house ${a.house ?? a.venue}.`;
+      `\n\nACTUALS: hammer £${a.hammer_paid_gbp}, all-in £${all_in}, K_buy ${K}, house ${a.house ?? a.venue}.` +
+      (a.commit_override_reason && (tooHigh || tooLow)
+        ? `\n\nFLAGS: commit outside ladder. ${a.commit_override_reason}`
+        : "");
     const valid_to = d.vault?.valid_to ?? null;
 
     const { data: note, error: nErr } = await sb
