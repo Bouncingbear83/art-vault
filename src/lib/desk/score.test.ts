@@ -169,3 +169,43 @@ test("absent bands degrade visibly to the artist basis", () => {
   expect(d.anchor.fair_value).toBe(2551); // unscaled Exit_Strong tier median
   expect(d.flags).toContain("bands-not-supplied:artist-median-basis");
 });
+
+/* ------------------- paper sleeve: paper_primary is display-only ----------- */
+
+// Wyld is the regression case. He is a live sub-sleeve name (ceiling £1,000) but
+// carries paper_primary=false BY DESIGN so his grain page keeps the oil view.
+// Gating eligibility on paper_primary made every finished Wyld sheet return
+// "paper-not-eligible" and his ceiling unreachable. Eligibility is the ceiling.
+const wyldCfg: DeskConfig = {
+  artist_id: "william-wyld", discount_class: "quality_hold_wanted",
+  discount_override_firm: null, discount_override_stretch: null, commission_floor_gbp: null,
+  min_longest_cm: null, strong_venue_default: false,
+  paper_primary: false,          // display flag, not an eligibility gate
+  paper_ceiling_gbp: 1000, arr_active_until: null,
+};
+
+const wyldSheet = {
+  artist_id: "william-wyld", title: "Venice, the Dogana", authorship: "Autograph",
+  medium_raw: "watercolour heightened with bodycolour", medium_class: "Watercolour",
+  longest_cm: 40, subject: "Venice", palette: "Sunlit", currency: "GBP",
+  venue: "Christie's London", sale_date: "2026-09-01",
+  strong_venue_candidate: false, taste_ok: true,
+  sheet_grade: "Finished", condition_checked: true,
+};
+
+test("paper sleeve: paper_primary=false still reaches the ceiling (Wyld)", () => {
+  const d = scoreLot(bundle({ lot: wyldSheet, config: wyldCfg, comps: [] }));
+  expect(d.lane).toBe("paper");
+  expect(d.binding_constraint).not.toBe("paper-not-eligible");
+  expect(d.decision).toBe("Buy");
+  // sighted finished sheet: firm = ceiling / K_buy, K = 1 + 0.28*1.20 = 1.336
+  expect(d.ladder.firm).toBe(Math.round(1000 / 1.336));
+});
+
+test("paper sleeve: a watercolour for a name with no ceiling is a medium skip", () => {
+  const noCeiling: DeskConfig = { ...wyldCfg, paper_ceiling_gbp: null };
+  const d = scoreLot(bundle({ lot: wyldSheet, config: noCeiling, comps: [] }));
+  expect(d.decision).toBe("Skip");
+  expect(d.binding_constraint).toBe("medium");
+  expect(d.ladder.firm).toBeNull();
+});
