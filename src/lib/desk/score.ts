@@ -75,6 +75,8 @@ export interface DeskParams {
   n_gate: number;
   homogeneity_threshold: number;
   recency_cutoff: number;
+  band_n_gate?: number;      // default 5; min n for a band cell to scale a bid
+  band_factor_cap?: number;  // default 1.5; uplift cap. Downside uncapped by design
 }
 
 export interface BudgetRow {
@@ -122,24 +124,27 @@ export interface Anchor {
   iqr: [number, number] | null;
   comp_range: [number, number] | null;
   band_factor?: number | null;
+  basis?: "band-scaled" | "artist";
+  band_label?: string | null;
+  band_n?: number | null;
   flags: string[];
 }
 
-/** Raw row from the artist_size_band_medians view (passed through untouched). */
+/** One row of public.artist_size_band_medians (tier_scope='All_UK'). */
 export interface BandMedianRow {
-  artist_id?: string | null;
-  band_label?: string | null;
-  band_lo?: number | null;
-  band_hi?: number | null;
-  sort_order?: number | null;
-  tier_scope?: string | null;
-  n?: number | null;
-  median_gbp?: number | null;
-  p25_gbp?: number | null;
-  p75_gbp?: number | null;
-  min_gbp?: number | null;
-  max_gbp?: number | null;
-  thin?: boolean | null;
+  artist_id: string;
+  band_label: string;
+  band_lo: number;
+  band_hi: number | null;
+  sort_order: number;
+  tier_scope: string;
+  n: number;
+  median_gbp: number | null;
+  p25_gbp: number | null;
+  p75_gbp: number | null;
+  min_gbp: number | null;
+  max_gbp: number | null;
+  thin: boolean;
 }
 
 export interface Ladder {
