@@ -6,7 +6,7 @@ import { AppShell } from "@/components/art/app-shell";
 import { Chip, EmptyState, Stat } from "@/components/art/primitives";
 import { fetchArtistOptions, gbp } from "@/lib/art360";
 import {
-  AUTHORSHIPS, PALETTES, SUBJECTS, commitLotClient, emptyLot, logVerdict, scoreLotClient,
+  AUTHORSHIPS, PALETTES, SUBJECTS, commitLadderGuard, commitLotClient, emptyLot, logVerdict, scoreLotClient,
   type CommitActuals, type LotForm,
 } from "@/lib/desk-ui";
 import type { Decision } from "@/lib/desk/score";
