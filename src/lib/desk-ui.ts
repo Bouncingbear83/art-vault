@@ -363,12 +363,17 @@ export interface DealLogSummary {
 }
 
 export function summariseDealLog(rows: DealLogRow[]): DealLogSummary {
+  const today = todayISO();
   const passes = rows.filter((r) => r.status !== "won");
   const resolved = passes.filter((r) => r.missed_by_gbp != null);
   return {
     called: rows.length,
     bought: rows.filter((r) => r.status === "won").length,
-    awaitingResult: passes.filter((r) => r.result_hammer_gbp == null).length,
+    // only lots whose sale has PASSED are chaseable; an upcoming lot has no
+    // result to record yet and should not read as an outstanding chore.
+    awaitingResult: passes.filter(
+      (r) => r.result_hammer_gbp == null && !!r.sale_date && r.sale_date < today,
+    ).length,
     passesWithResult: resolved.length,
     opportunityCostGbp: resolved.reduce((s, r) => s + Math.max(0, r.missed_by_gbp!), 0),
     correctPasses: resolved.filter((r) => r.missed_by_gbp! < 0).length,
