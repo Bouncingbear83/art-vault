@@ -134,6 +134,23 @@ export interface CommitResult {
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
 
+/**
+ * Spec §8: a Lot note expires the day after the sale, WHATEVER the decision.
+ * The scorer only emits a `vault` block on the Buy path, so keying valid_to off
+ * `d.vault` left every Monitor and Skip note evergreen: they never fell out of
+ * the default non-expired search and silently went stale (the §I.5 staleness
+ * fault, re-entering on the Lot note type). Derive it from sale_date instead;
+ * honour the scorer's value when it supplies one.
+ */
+export function lotValidTo(sale_date: string | null, vaultValidTo?: string | null): string | null {
+  if (vaultValidTo) return vaultValidTo;
+  if (!sale_date) return null;
+  const d = new Date(`${sale_date}T00:00:00Z`);
+  if (Number.isNaN(d.getTime())) return null;
+  d.setUTCDate(d.getUTCDate() + 1);
+  return d.toISOString().slice(0, 10);
+}
+
 /** The I.5-grammar body, built for any decision (not just Buy). */
 function verdictBody(f: LotForm, d: Decision, extra?: string): string {
   const a = d.anchor;
@@ -183,7 +200,7 @@ export async function logVerdict(f: LotForm, d: Decision): Promise<void> {
   await upsertLotNote({
     sale_key: d.lot.sale_key, artist_id: f.artist_id, decision: d.decision,
     body: verdictBody(f, d, `SCORED: ${todayISO()}.`),
-    valid_to: d.vault?.valid_to ?? null, valid_from: todayISO(),
+    valid_to: lotValidTo(f.sale_date, d.vault?.valid_to ?? null), valid_from: todayISO(),
   });
   await upsertLotRow(f, d);
 }
@@ -212,7 +229,8 @@ export async function commitLotClient(f: LotForm, act: CommitActuals): Promise<C
   // one Lot note per lot: the verdict note becomes the committed record
   const note_id = await upsertLotNote({
     sale_key, artist_id: f.artist_id, decision: "Buy",
-    body: verdictBody(f, d, actuals), valid_to: d.vault?.valid_to ?? null, valid_from: buy_date,
+    body: verdictBody(f, d, actuals),
+    valid_to: lotValidTo(f.sale_date, d.vault?.valid_to ?? null), valid_from: buy_date,
   });
 
   // upsert the position by sale_key so a re-commit doesn't duplicate
@@ -240,7 +258,12 @@ export async function commitLotClient(f: LotForm, act: CommitActuals): Promise<C
     // graduate the candidate row: won + links (upsert so a never-scored lot still lands)
   const wonRow = lotRowFromDecision(d, toLotInput(f), { captured_by: "manual", source_ref: sale_key });
   const { error: gErr } = await sb.from("lots").upsert(
-    { ...wonRow, status: "won", position_id, lot_note_id: note_id },
+    {
+      ...wonRow, status: "won", position_id, lot_note_id: note_id,
+      // the realised figure lives on the candidate row as well as the position,
+      // so the Deal Log can compute vs-firm without joining positions
+      result_hammer_gbp: act.hammer_paid_gbp, result_captured_at: buy_date,
+    },
     { onConflict: "sale_key" },
   );
   if (gErr) console.warn("lots graduation failed:", gErr.message);
@@ -250,35 +273,124 @@ export async function commitLotClient(f: LotForm, act: CommitActuals): Promise<C
 
 /* ------------------------------ deal log ---------------------------------- */
 
+/**
+ * The log reads the STRUCTURED ledger (public.lots), not the Lot note bodies.
+ * Rendering the bodies made the log a second copy of the desk: same rows, same
+ * content, different typography. Its only non-duplicative job is calibration:
+ * what did I say I would pay, what did the lot actually make, and was my
+ * walk-away too tight (mandate §G/§H, "summed Missed_By").
+ *
+ * `missed_by_gbp = ladder_firm_gbp - result_hammer_gbp`, one sign convention
+ * for every row:
+ *   positive -> it cleared BELOW the firm walk-away; had it, passed on it.
+ *               Summed across passes, this is the opportunity cost §G asks for.
+ *   negative -> it went above the walk-away; the pass was correct discipline.
+ * On a won lot the same figure reads as headroom: positive = paid under firm.
+ * Null until a result is captured; the log never guesses one.
+ */
 export interface DealLogRow {
-  note_id: string;
+  lot_id: string;
+  sale_key: string;
+  artist_id: string;
   artist_name: string | null;
+  title: string;
+  venue: string | null;
+  sale_date: string | null;
   decision: string | null;
-  body: string;
-  valid_from: string | null;
-  source_ref: string | null;
+  status: string;
+  binding_constraint: string | null;
+  fair_value_gbp: number | null;
+  ladder_firm_gbp: number | null;
+  all_in_at_firm_gbp: number | null;
+  result_hammer_gbp: number | null;
+  missed_by_gbp: number | null;
+  scored_at: string | null;
+  lot_note_id: string | null;
 }
+
 type RawLog = {
-  note_id: string; decision: string | null; body: string; valid_from: string | null;
-  source_ref: string | null; artists: { display_name: string | null } | null;
+  lot_id: string; sale_key: string; artist_id: string; title: string;
+  venue: string | null; sale_date: string | null; decision: string | null;
+  status: string; binding_constraint: string | null; fair_value_gbp: number | null;
+  ladder_firm_gbp: number | null; all_in_at_firm_gbp: number | null;
+  result_hammer_gbp: number | null; scored_at: string | null; lot_note_id: string | null;
+  artists: { display_name: string | null } | null;
 };
 
 export async function fetchDealLog(): Promise<DealLogRow[]> {
   const { data, error } = await sb
-    .from("notes")
-    .select("note_id, decision, body, valid_from, source_ref, artists(display_name)")
-    .eq("note_type", "Lot")
-    .order("valid_from", { ascending: false })
-    .limit(200);
+    .from("lots")
+    .select(
+      "lot_id, sale_key, artist_id, title, venue, sale_date, decision, status, binding_constraint, fair_value_gbp, ladder_firm_gbp, all_in_at_firm_gbp, result_hammer_gbp, scored_at, lot_note_id, artists(display_name)",
+    )
+    // deliberately unfiltered: the log is every lot ever called, buys and passes
+    .order("sale_date", { ascending: false, nullsFirst: false })
+    .limit(500);
   if (error) throw error;
-  return ((data ?? []) as unknown as RawLog[]).map((r) => ({
-    note_id: r.note_id,
-    artist_name: r.artists?.display_name ?? null,
-    decision: r.decision,
-    body: r.body,
-    valid_from: r.valid_from,
-    source_ref: r.source_ref,
-  }));
+  return ((data ?? []) as unknown as RawLog[]).map((r) => {
+    const firm = num(r.ladder_firm_gbp);
+    const result = num(r.result_hammer_gbp);
+    return {
+      lot_id: r.lot_id,
+      sale_key: r.sale_key,
+      artist_id: r.artist_id,
+      artist_name: r.artists?.display_name ?? r.artist_id,
+      title: r.title,
+      venue: r.venue,
+      sale_date: r.sale_date,
+      decision: r.decision,
+      status: r.status,
+      binding_constraint: r.binding_constraint,
+      fair_value_gbp: num(r.fair_value_gbp),
+      ladder_firm_gbp: firm,
+      all_in_at_firm_gbp: num(r.all_in_at_firm_gbp),
+      result_hammer_gbp: result,
+      missed_by_gbp: firm != null && result != null ? Math.round(firm - result) : null,
+      scored_at: r.scored_at,
+      lot_note_id: r.lot_note_id,
+    };
+  });
+}
+
+/** Calibration roll-up for the log header: is the ladder too tight? */
+export interface DealLogSummary {
+  called: number;
+  bought: number;
+  awaitingResult: number;
+  passesWithResult: number;
+  opportunityCostGbp: number;   // sum of positive missed_by on lots NOT bought
+  correctPasses: number;        // cleared above the walk-away
+}
+
+export function summariseDealLog(rows: DealLogRow[]): DealLogSummary {
+  const passes = rows.filter((r) => r.status !== "won");
+  const resolved = passes.filter((r) => r.missed_by_gbp != null);
+  return {
+    called: rows.length,
+    bought: rows.filter((r) => r.status === "won").length,
+    awaitingResult: passes.filter((r) => r.result_hammer_gbp == null).length,
+    passesWithResult: resolved.length,
+    opportunityCostGbp: resolved.reduce((s, r) => s + Math.max(0, r.missed_by_gbp!), 0),
+    correctPasses: resolved.filter((r) => r.missed_by_gbp! < 0).length,
+  };
+}
+
+/** Capture a post-sale result against a called lot; this is what feeds Missed_By. */
+export async function recordLotResult(p: {
+  sale_key: string;
+  result_hammer_gbp: number | null;  // null = unsold / bought in
+  captured_at?: string;
+}): Promise<void> {
+  const { error } = await sb
+    .from("lots")
+    .update({
+      result_hammer_gbp: p.result_hammer_gbp,
+      result_captured_at: p.captured_at ?? todayISO(),
+      status: p.result_hammer_gbp == null ? "expired" : "lost",
+    })
+    .eq("sale_key", p.sale_key)
+    .neq("status", "won");
+  if (error) throw error;
 }
 
 /* ------------------------------ candidate ledger (lots) ------------------- */
@@ -305,7 +417,12 @@ export async function fetchScoredLots(opts?: { includeSkipped?: boolean }): Prom
       "lot_id, sale_key, artist_id, title, decision, binding_constraint, status, captured_by, fair_value_gbp, ladder_firm_gbp, ladder_stretch_gbp, ladder_commission_gbp, all_in_at_firm_gbp, anchor_tier, anchor_rung, anchor_n, anchor_confidence, subject, palette, longest_cm, venue, sale_date, flags, lot_note_id, source_ref, artists(display_name)",
     )
     .in("status", statuses)
-    .order("sale_date", { ascending: false })
+    // The desk is the FORWARD surface: a lot whose sale has passed is history and
+    // belongs to the Deal Log alone. Without this, a Monitor sat on the desk
+    // indefinitely and appeared on both pages at once (the duplication fault).
+    // Undated lots are kept: they are un-timetabled candidates, not stale ones.
+    .or(`sale_date.gte.${todayISO()},sale_date.is.null`)
+    .order("sale_date", { ascending: true })
     .limit(200);
   if (error) throw error;
   type Raw = Omit<ScoredLotRow, "artist_name"> & { artists: { display_name: string | null } | null };
