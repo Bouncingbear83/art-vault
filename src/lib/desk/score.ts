@@ -433,7 +433,7 @@ export function scoreLot(b: ScoreBundle): Decision {
   if (lot.palette_keyword_only) flags.push("palette-keyword-only");
 
   // Stage 4: size band + per-name size floor
-  const band = sizeBand(lot.longest_cm);
+  const band = resolveBand(lot.longest_cm, b.bands);
   if (config.min_longest_cm != null && lot.longest_cm < config.min_longest_cm)
     return base({ decision: "Skip", binding_constraint: "size-floor", rationale: `${lot.longest_cm}cm below ${config.min_longest_cm}cm floor for this name.` });
 
@@ -470,14 +470,42 @@ export function scoreLot(b: ScoreBundle): Decision {
     });
   }
 
-  const fair_value = round(median(slice.values));
-  const p25 = round(quantile(slice.values, 0.25));
-  const p75 = round(quantile(slice.values, 0.75));
-  const lo = round(Math.min(...slice.values));
-  const hi = round(Math.max(...slice.values));
+  const tierMed = round(median(slice.values));
+  const anchorFlags = [...slice.flags];
+
+  // Size scaling. Rung 1 is already tier ∩ band, so scaling it would double-count.
+  if (!b.bands?.length) flags.push("bands-not-supplied:artist-median-basis");
+  const bf = slice.rung === 1
+    ? null
+    : bandFactor(b.bands, lot.artist_id, band.label,
+                 params.band_n_gate ?? 5, params.band_factor_cap ?? 1.5);
+
+  const fair_value = bf ? round(tierMed * bf.factor) : tierMed;
+
+  if (slice.rung === 1) {
+    anchorFlags.push(`band-native:${band.label}`);
+  } else if (bf) {
+    anchorFlags.push(
+      `band-scaled:${band.label}`, `band-factor:${bf.raw}`, "tier-gradient-assumed",
+      ...(bf.clamped ? [`band-factor-clamped:${bf.raw}->${bf.factor}`] : []),
+    );
+  } else {
+    anchorFlags.push(`band-thin-fallback:${band.label}`);
+  }
+
+  // Dispersion: within-band when scaled, so size does not re-enter quality_delta.
+  const vals = slice.values;
+  const lo = bf && bf.bound ? round(bf.bound[0] * fair_value) : round(Math.min(...vals));
+  const hi = bf && bf.bound ? round(bf.bound[1] * fair_value) : round(Math.max(...vals));
+
   const anchor: Anchor = {
-    fair_value, tier, rung: slice.rung, n: slice.values.length, confidence: slice.confidence,
-    iqr: [p25, p75], comp_range: [lo, hi], flags: slice.flags,
+    fair_value, tier, rung: slice.rung, n: slice.values.length,
+    confidence: bf && bf.clamped ? "Med" : slice.confidence,
+    iqr: [round(quantile(vals, 0.25)), round(quantile(vals, 0.75))],
+    comp_range: [lo, hi],
+    basis: bf ? "band-scaled" : "artist",
+    band_label: band.label, band_factor: bf ? bf.factor : null, band_n: bf ? bf.n : null,
+    flags: anchorFlags,
   };
 
   // Stage 6: quality delta (bounded)
