@@ -138,11 +138,12 @@ export async function loadScoreInputs(
   artist_id: string,
   period_year: number,
 ): Promise<ScoreInputs> {
-  const [comps, config, params, budget] = await Promise.all([
+  const [comps, bands, config, params, budget] = await Promise.all([
     fetchArtistComps(sb, artist_id),
+    fetchArtistBands(sb, artist_id),
     fetchDeskConfig(sb, artist_id),
     fetchDeskParams(sb),
     fetchBudget(sb, period_year),
   ]);
-  return { comps, config, params, budget };
+  return { comps, bands, config, params, budget };
 }
