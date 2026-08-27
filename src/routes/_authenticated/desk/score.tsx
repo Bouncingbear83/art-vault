@@ -269,13 +269,24 @@ function CommitPanel({ result, form }: { result: Decision; form: LotForm }) {
         </label>
         <label className="block">
           <span className="label-caps">House</span>
-          <input className={inputCls} value={act.house} onChange={(e) => setAct((p) => ({ ...p, house: e.target.value }))} />
+          <input className={inputCls} value={house} onChange={(e) => setHouse(e.target.value)} />
         </label>
       </div>
       <input className={inputCls} value={act.condition_status} onChange={(e) => setAct((p) => ({ ...p, condition_status: e.target.value }))} placeholder="condition as bought" />
+      {outside && (
+        <div className="space-y-2 border-l-2 border-ochre pl-3">
+          <p className="text-xs text-ochre">{guard.message}</p>
+          <input
+            className={inputCls}
+            value={act.commit_override_reason ?? ""}
+            onChange={(e) => setAct((p) => ({ ...p, commit_override_reason: e.target.value }))}
+            placeholder="reason to commit outside the ladder (required)"
+          />
+        </div>
+      )}
       <button
         onClick={() => commit.mutate()}
-        disabled={commit.isPending || !act.hammer_paid_gbp}
+        disabled={commit.isPending || !act.hammer_paid_gbp || needsReason}
         className="label-caps w-full rounded-sm border border-border px-4 py-2.5 transition-colors hover:border-harbour hover:text-harbour disabled:opacity-50"
       >
         {commit.isPending ? "Committing…" : "Commit to ledger"}
