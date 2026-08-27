@@ -809,7 +809,7 @@ function MediumLedger({ s }: { s: GrainStats }) {
 
 // ---------- composed ----------
 
-export function GrainPanels({ rows, artistId }: { rows: GrainRow[]; artistId: string }) {
+export function GrainPanels({ rows, artistId, bands }: { rows: GrainRow[]; artistId: string; bands: BandRow[] }) {
   const sleeve = paperSleeve(artistId);
   const paperMode = sleeve?.paperPrimary === true; // suppress oil view only for paper-primary names
   const bounds = useMemo<[number, number]>(() => yearsOf(rows) ?? [2000, new Date().getUTCFullYear()], [rows]);
