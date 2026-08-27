@@ -42,6 +42,8 @@ export default defineTool({
     condition_status: z.string().optional().describe("Condition as bought, for the ledger."),
     buy_date: z.string().optional().describe("ISO; defaults to today."),
     rationale: z.string().optional().describe("The glad-to-own line; else the scorer's."),
+    commit_override_reason: z.string().optional()
+      .describe("Required to commit outside the scored ladder. Recorded on the position."),
   },
   annotations: { readOnlyHint: false, destructiveHint: false },
   handler: async (a, ctx) => {
