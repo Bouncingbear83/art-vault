@@ -215,7 +215,8 @@ export function sizeBand(cm: number): { label: string; lo: number; hi: number } 
 export function resolveBand(cm: number, bands?: BandMedianRow[]): { label: string; lo: number; hi: number } {
   if (bands && bands.length) {
     const hit = bands.find(
-      (b) => b.tier_scope === "All_UK" && cm >= b.band_lo && (b.band_hi == null || cm < b.band_hi),
+      (b) => b.tier_scope === "All_UK" && b.band_label !== "ALL" &&
+             cm >= b.band_lo && (b.band_hi == null || cm < b.band_hi),
     );
     if (hit) return { label: hit.band_label, lo: hit.band_lo, hi: hit.band_hi ?? Infinity };
   }
