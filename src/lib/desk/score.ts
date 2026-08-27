@@ -246,11 +246,12 @@ function bandFactor(
   const cell = cells.find((b) => b.band_label === label);
   if (!cell || cell.n < gate || cell.median_gbp == null) return null;
 
-  const all = cells.filter((b) => b.median_gbp != null && b.n > 0);
-  if (!all.length) return null;
-  const totN = all.reduce((s, b) => s + b.n, 0);
-  const artistLevel = all.reduce((s, b) => s + (b.median_gbp as number) * b.n, 0) / totN;
-  if (!(artistLevel > 0)) return null;
+  // Denominator is the artist-level median on the same predicate (view row
+  // band_label='ALL'), NOT a mean of band medians: the latter sits above the
+  // median on a skewed body and deflates every factor.
+  const artistCell = cells.find((b) => b.band_label === "ALL");
+  const artistLevel = artistCell?.median_gbp ?? null;
+  if (artistLevel == null || !(artistLevel > 0)) return null;
 
   const raw = (cell.median_gbp as number) / artistLevel;
   const factor = raw > cap ? cap : raw;
@@ -261,7 +262,7 @@ function bandFactor(
           Math.round((cell.max_gbp / (cell.median_gbp as number)) * 100) / 100,
         ]
       : null;
-  return { factor, raw: Math.round(raw * 100) / 100, clamped: raw > cap, n: cell.n, bound };
+  return { factor: Math.round(factor * 1000) / 1000, raw: Math.round(raw * 100) / 100, clamped: raw > cap, n: cell.n, bound };
 }
 
 export function computeInZone(artist_id: string, subject: string): "In" | "Skip" {
