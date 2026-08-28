@@ -277,7 +277,13 @@ export function palettePref(artist_id: string): "Sunlit" | "Moonlit" {
   return artist_id.toLowerCase().includes("olsson") ? "Moonlit" : "Sunlit";
 }
 
-function inferMedium(raw: string): string {
+/**
+ * Exported (2026-08-28) so the forward-feed radar classifies medium with this
+ * exact function rather than reimplementing it in an n8n Code node. Two
+ * classifiers drift; one does not. Oil is tested first, which is also what
+ * enforces the §D paper-dominance rule on "watercolour over pencil".
+ */
+export function inferMedium(raw: string): string {
   const r = raw.toLowerCase();
   if (/(oil|olio|huile)/.test(r)) return OIL;
   if (/(watercolour|watercolor|aquarelle|gouache|bodycolour)/.test(r)) return WATERCOLOUR;
@@ -300,9 +306,18 @@ function slugToken(id: string, token: string) {
   return id.toLowerCase().includes(token);
 }
 
-function saleKey(lot: LotInput): string {
-  const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
-  return [lot.artist_id, norm(lot.title), norm(lot.venue), lot.sale_date].join("|");
+/**
+ * The sale_key normaliser, extracted and exported unchanged (2026-08-28) so the
+ * radar mints keys identically to the desk. comps.sale_key uses a different
+ * generator entirely (display name, raw venue), which is why result backfill
+ * matches on artist_id + normalised title + sale_date and never on sale_key.
+ */
+export function normKey(s: string): string {
+  return s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+}
+
+export function saleKey(lot: LotInput): string {
+  return [lot.artist_id, normKey(lot.title), normKey(lot.venue), lot.sale_date].join("|");
 }
 
 /* --------------------------- rung ladder (§4) -------------------------- */
