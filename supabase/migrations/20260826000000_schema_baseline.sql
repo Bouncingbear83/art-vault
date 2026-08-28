@@ -16,6 +16,16 @@
 --    pg_class WHERE relkind='v' AND relnamespace='public'::regnamespace;
 --  * 11 legacy enums are superseded by _t versions and used by no column. Kept for
 --    fidelity; optional drop block at the foot.
+--
+-- Amended 2026-08-28: section 3 reordered by constraint kind. It previously ran in
+-- alphabetical order, which put artist_desk_config_artist_id_fkey ahead of
+-- artists_pkey and aborted the file at 42830, so this baseline had never replayed
+-- and supabase db reset could not rebuild the database. No statement was added,
+-- removed or edited: only the order changed. Verified by replaying this file plus
+-- every later migration into an empty PostgreSQL 16 cluster in one pass with
+-- ON_ERROR_STOP, then running parity_check.sql: 19 of 19 facets match live.
+-- Note: is_owner() calls auth.jwt(), so the auth schema must exist before this file
+-- runs. Supabase provides it; a bare cluster does not.
 
 
 -- ==================== 1. ENUM TYPES ====================
@@ -67,40 +77,51 @@ CREATE TABLE IF NOT EXISTS public.triggers (artist_id text NOT NULL, tier_label 
 CREATE TABLE IF NOT EXISTS public.vocab_note_tag (tag text NOT NULL, description text);
 
 -- ==================== 3. CONSTRAINTS ====================
-ALTER TABLE public.artist_desk_config ADD CONSTRAINT artist_desk_config_artist_id_fkey FOREIGN KEY (artist_id) REFERENCES artists(artist_id) ON DELETE CASCADE;
+-- Ordered by kind, not alphabetically: primary keys and unique constraints must
+-- exist before any foreign key can reference them. The alphabetical order this
+-- file previously carried made it unreplayable (42830 at artist_desk_config).
+
+-- 3a. Primary keys
 ALTER TABLE public.artist_desk_config ADD CONSTRAINT artist_desk_config_pkey PRIMARY KEY (artist_id);
-ALTER TABLE public.notes ADD CONSTRAINT artist_scope_requires_id CHECK (((scope <> 'Artist'::note_scope_t) OR (artist_id IS NOT NULL)));
 ALTER TABLE public.artists ADD CONSTRAINT artists_pkey PRIMARY KEY (artist_id);
 ALTER TABLE public.budget ADD CONSTRAINT budget_pkey PRIMARY KEY (period_year);
 ALTER TABLE public.comps ADD CONSTRAINT comps_pkey PRIMARY KEY (sale_key);
-ALTER TABLE public.comps_raw ADD CONSTRAINT comps_raw_artist_id_fkey FOREIGN KEY (artist_id) REFERENCES artists(artist_id);
 ALTER TABLE public.comps_raw ADD CONSTRAINT comps_raw_pkey PRIMARY KEY (sale_key);
-ALTER TABLE public.comps_stage ADD CONSTRAINT comps_stage_artist_title_venue_sale_date_key UNIQUE (artist, title, venue, sale_date);
 ALTER TABLE public.comps_stage ADD CONSTRAINT comps_stage_pkey PRIMARY KEY (id);
 ALTER TABLE public.desk_params ADD CONSTRAINT desk_params_pkey PRIMARY KEY (params_id);
-ALTER TABLE public.notes ADD CONSTRAINT flag_requires_priority CHECK (((note_type <> 'Flag'::note_type_t) OR (priority IS NOT NULL)));
-ALTER TABLE public.lots ADD CONSTRAINT lots_artist_id_fkey FOREIGN KEY (artist_id) REFERENCES artists(artist_id) ON DELETE CASCADE;
-ALTER TABLE public.lots ADD CONSTRAINT lots_captured_by_check CHECK ((captured_by = ANY (ARRAY['claude'::text, 'manual'::text, 'radar'::text])));
-ALTER TABLE public.lots ADD CONSTRAINT lots_decision_check CHECK ((decision = ANY (ARRAY['Buy'::text, 'Skip'::text, 'Monitor'::text])));
-ALTER TABLE public.lots ADD CONSTRAINT lots_in_zone_check CHECK ((in_zone = ANY (ARRAY['In'::text, 'Skip'::text])));
-ALTER TABLE public.lots ADD CONSTRAINT lots_lane_check CHECK ((lane = ANY (ARRAY['oil'::text, 'paper'::text, 'pritchett-table'::text])));
 ALTER TABLE public.lots ADD CONSTRAINT lots_pkey PRIMARY KEY (lot_id);
-ALTER TABLE public.lots ADD CONSTRAINT lots_sale_key_key UNIQUE (sale_key);
-ALTER TABLE public.lots ADD CONSTRAINT lots_status_check CHECK ((status = ANY (ARRAY['open'::text, 'monitor'::text, 'skipped'::text, 'won'::text, 'lost'::text, 'expired'::text])));
-ALTER TABLE public.note_tags ADD CONSTRAINT note_tags_note_id_fkey FOREIGN KEY (note_id) REFERENCES notes(note_id) ON DELETE CASCADE;
 ALTER TABLE public.note_tags ADD CONSTRAINT note_tags_pkey PRIMARY KEY (note_id, tag);
+ALTER TABLE public.notes ADD CONSTRAINT notes_pkey PRIMARY KEY (note_id);
+ALTER TABLE public.positions ADD CONSTRAINT positions_pkey PRIMARY KEY (position_id);
+ALTER TABLE public.triggers ADD CONSTRAINT triggers_pkey PRIMARY KEY (artist_id, tier_label);
+ALTER TABLE public.vocab_note_tag ADD CONSTRAINT vocab_note_tag_pkey PRIMARY KEY (tag);
+
+-- 3b. Unique constraints
+ALTER TABLE public.comps_stage ADD CONSTRAINT comps_stage_artist_title_venue_sale_date_key UNIQUE (artist, title, venue, sale_date);
+ALTER TABLE public.lots ADD CONSTRAINT lots_sale_key_key UNIQUE (sale_key);
+ALTER TABLE public.notes ADD CONSTRAINT notes_slug_key UNIQUE (slug);
+
+-- 3c. Foreign keys
+ALTER TABLE public.artist_desk_config ADD CONSTRAINT artist_desk_config_artist_id_fkey FOREIGN KEY (artist_id) REFERENCES artists(artist_id) ON DELETE CASCADE;
+ALTER TABLE public.comps_raw ADD CONSTRAINT comps_raw_artist_id_fkey FOREIGN KEY (artist_id) REFERENCES artists(artist_id);
+ALTER TABLE public.lots ADD CONSTRAINT lots_artist_id_fkey FOREIGN KEY (artist_id) REFERENCES artists(artist_id) ON DELETE CASCADE;
+ALTER TABLE public.note_tags ADD CONSTRAINT note_tags_note_id_fkey FOREIGN KEY (note_id) REFERENCES notes(note_id) ON DELETE CASCADE;
 ALTER TABLE public.note_tags ADD CONSTRAINT note_tags_tag_fkey FOREIGN KEY (tag) REFERENCES vocab_note_tag(tag);
 ALTER TABLE public.notes ADD CONSTRAINT notes_artist_id_fkey FOREIGN KEY (artist_id) REFERENCES artists(artist_id);
-ALTER TABLE public.notes ADD CONSTRAINT notes_pkey PRIMARY KEY (note_id);
-ALTER TABLE public.notes ADD CONSTRAINT notes_slug_key UNIQUE (slug);
 ALTER TABLE public.notes ADD CONSTRAINT notes_supersedes_fkey FOREIGN KEY (supersedes) REFERENCES notes(note_id);
 ALTER TABLE public.positions ADD CONSTRAINT positions_artist_id_fkey FOREIGN KEY (artist_id) REFERENCES artists(artist_id) ON DELETE SET NULL;
 ALTER TABLE public.positions ADD CONSTRAINT positions_lot_note_id_fkey FOREIGN KEY (lot_note_id) REFERENCES notes(note_id) ON DELETE SET NULL;
 ALTER TABLE public.positions ADD CONSTRAINT positions_params_id_fkey FOREIGN KEY (params_id) REFERENCES desk_params(params_id) ON DELETE SET NULL;
-ALTER TABLE public.positions ADD CONSTRAINT positions_pkey PRIMARY KEY (position_id);
 ALTER TABLE public.triggers ADD CONSTRAINT triggers_artist_id_fkey FOREIGN KEY (artist_id) REFERENCES artists(artist_id);
-ALTER TABLE public.triggers ADD CONSTRAINT triggers_pkey PRIMARY KEY (artist_id, tier_label);
-ALTER TABLE public.vocab_note_tag ADD CONSTRAINT vocab_note_tag_pkey PRIMARY KEY (tag);
+
+-- 3d. Check constraints
+ALTER TABLE public.lots ADD CONSTRAINT lots_captured_by_check CHECK ((captured_by = ANY (ARRAY['claude'::text, 'manual'::text, 'radar'::text])));
+ALTER TABLE public.lots ADD CONSTRAINT lots_decision_check CHECK ((decision = ANY (ARRAY['Buy'::text, 'Skip'::text, 'Monitor'::text])));
+ALTER TABLE public.lots ADD CONSTRAINT lots_in_zone_check CHECK ((in_zone = ANY (ARRAY['In'::text, 'Skip'::text])));
+ALTER TABLE public.lots ADD CONSTRAINT lots_lane_check CHECK ((lane = ANY (ARRAY['oil'::text, 'paper'::text, 'pritchett-table'::text])));
+ALTER TABLE public.lots ADD CONSTRAINT lots_status_check CHECK ((status = ANY (ARRAY['open'::text, 'monitor'::text, 'skipped'::text, 'won'::text, 'lost'::text, 'expired'::text])));
+ALTER TABLE public.notes ADD CONSTRAINT artist_scope_requires_id CHECK (((scope <> 'Artist'::note_scope_t) OR (artist_id IS NOT NULL)));
+ALTER TABLE public.notes ADD CONSTRAINT flag_requires_priority CHECK (((note_type <> 'Flag'::note_type_t) OR (priority IS NOT NULL)));
 
 -- ==================== 4. INDEXES ====================
 CREATE INDEX comps_artist_idx ON public.comps USING btree (artist_id);
