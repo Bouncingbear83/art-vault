@@ -35,7 +35,7 @@ export interface GrainRow {
   hammer_equiv_gbp: number | null;
   longest_cm: number | null;
   status: string;
-  in_zone: boolean | null;
+  in_zone: string | null; // 'In' | 'Skip', as stored in comps.in_zone (text)
   sale_date: string;
   sheet_grade?: string | null;
   title?: string | null;
@@ -645,7 +645,7 @@ function PaperSizeScatter({ rows, ceiling }: { rows: GrainRow[]; ceiling: number
 function RealisationStrip({ rows }: { rows: GrainRow[] }) {
   const jitter = (r: GrainRow, i: number) => TIERS.indexOf(r.vtype_resolved as Tier) + ((((i * 37) % 13) / 13 - 0.5) * 0.55);
   const eligible = rows.filter((r) => r.est_mid_gbp != null && (r.est_mid_gbp as number) >= EST_FLOOR && r.hammer_equiv_gbp != null && (r.hammer_equiv_gbp as number) > 0);
-  const pts = eligible.map((r, i) => ({ x: jitter(r, i), y: (r.hammer_equiv_gbp as number) / (r.est_mid_gbp as number), inzone: r.in_zone === true, ...enrich(r) }));
+  const pts = eligible.map((r, i) => ({ x: jitter(r, i), y: (r.hammer_equiv_gbp as number) / (r.est_mid_gbp as number), inzone: r.in_zone === "In", ...enrich(r) }));
   const inzone = pts.filter((p) => p.inzone);
   const outzone = pts.filter((p) => !p.inzone);
   if (pts.length < 3) return <p className="text-xs text-stone-500 border border-stone-200 rounded p-4">Too few lots with an estimate above £{EST_FLOOR} to read realisation.</p>;
@@ -759,7 +759,7 @@ function SizeBandTable({ rows, bands }: { rows: GrainRow[]; bands: BandRow[] }) 
 function TimeBubble({ rows }: { rows: GrainRow[] }) {
   const pts = rows
     .filter((r) => r.hammer_equiv_gbp != null && (r.hammer_equiv_gbp as number) > 0 && !!r.sale_date)
-    .map((r) => ({ t: new Date(r.sale_date).getTime(), y: r.hammer_equiv_gbp as number, inzone: r.in_zone === true, ...enrich(r), size: r.longest_cm ?? 20 }))
+    .map((r) => ({ t: new Date(r.sale_date).getTime(), y: r.hammer_equiv_gbp as number, inzone: r.in_zone === "In", ...enrich(r), size: r.longest_cm ?? 20 }))
     .filter((p) => !Number.isNaN(p.t));
   if (pts.length < 3) return <p className="text-xs text-stone-500 border border-stone-200 rounded p-4">Too few dated sold lots to plot.</p>;
   const inzone = pts.filter((p) => p.inzone);
