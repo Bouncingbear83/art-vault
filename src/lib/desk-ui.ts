@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { scoreLot, type Decision, type LotInput, type ScoreBundle } from "@/lib/desk/score";
 import { loadScoreInputs } from "@/lib/desk/slices";
-import { lotRowFromDecision } from "@/lib/desk/persist";
+import { lotRowFromDecision, type LotRowMeta } from "@/lib/desk/persist";
 
 const sb = supabase as unknown as SupabaseClient;
 const num = (v: unknown): number | null => (v == null ? null : Number(v));
@@ -188,22 +188,143 @@ async function upsertLotNote(p: {
   return data.note_id as string;
 }
 
-/** Upsert the structured candidate row (public.lots) keyed on sale_key. */
-export async function upsertLotRow(f: LotForm, d: Decision, source_ref?: string | null): Promise<void> {
-  const row = lotRowFromDecision(d, toLotInput(f), { captured_by: "manual", source_ref: source_ref ?? null });
+/**
+ * Upsert the structured candidate row (public.lots) keyed on sale_key.
+ *
+ * `capture` exists so a lot promoted off the radar keeps its provenance:
+ * captured_by='radar', the listing URL, and the LLM's classification stamp.
+ * It is the SAME mapper either way. The radar must never get its own writer,
+ * or the ledger stops having one shape.
+ */
+export async function upsertLotRow(
+  f: LotForm,
+  d: Decision,
+  capture?: Partial<LotRowMeta>,
+): Promise<void> {
+  const row = lotRowFromDecision(d, toLotInput(f), {
+    captured_by: capture?.captured_by ?? "manual",
+    source_ref: capture?.source_ref ?? null,
+    classification_confidence: capture?.classification_confidence ?? null,
+  });
   const { error } = await sb.from("lots").upsert(row, { onConflict: "sale_key" });
   if (error) throw error;
 }
 
+/* --------------------------- radar promotion ------------------------------ */
+
+/**
+ * Hydrate the score form from a radar-surfaced row.
+ *
+ * Two things this deliberately does NOT carry across:
+ *   taste_ok            forced false. The radar has no taste value and must not
+ *                       supply one; the form makes the human answer before the
+ *                       ladder is computed. emptyLot() defaults it true, which
+ *                       would silently answer the gate on a promoted lot.
+ *   strong_venue_candidate  forced false: the anti-mirage default. Venue type is
+ *                       never inferred from the listing.
+ *
+ * `venue` is hydrated from venue_canonical, not the raw string, so the desk
+ * recomputes exactly the sale_key the radar minted and the upsert lands on the
+ * same row rather than forking it.
+ */
+export interface RadarHydration {
+  form: LotForm;
+  sale_key: string;
+  source_ref: string | null;
+  classification_confidence: number | null;
+  band_verdict: string | null;
+  band_label: string | null;
+  radar_reason: string | null;
+  subject_confidence: number | null;
+  palette_confidence: number | null;
+}
+
+export async function hydrateFromUpcoming(sale_key: string): Promise<RadarHydration> {
+  const { data, error } = await sb
+    .from("upcoming_lots")
+    .select(
+      "sale_key, artist_id, title, authorship, medium_raw, medium_class, subject, palette, subject_confidence, palette_confidence, in_zone, longest_cm, est_low, est_high, currency, venue_canonical, sale_date, lot_url, source_ref, band_verdict, band_label, radar_reason",
+    )
+    .eq("sale_key", sale_key)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) throw new Error(`No radar row for ${sale_key}.`);
+  const r = data as Record<string, unknown>;
+  if (!r["artist_id"]) throw new Error("This lot has no roster artist, so it cannot be scored.");
+
+  const s = (v: unknown) => (v == null ? "" : String(v));
+  const n = (v: unknown): number | null => (v == null ? null : Number(v));
+  const subject_confidence = n(r["subject_confidence"]);
+  const palette_confidence = n(r["palette_confidence"]);
+
+  const form: LotForm = {
+    ...emptyLot(),
+    artist_id: s(r["artist_id"]),
+    title: s(r["title"]),
+    authorship: s(r["authorship"]) || "Autograph",
+    medium_raw: s(r["medium_raw"]),
+    medium_class: s(r["medium_class"]),
+    longest_cm: Number(r["longest_cm"] ?? 0),
+    subject: s(r["subject"]),
+    palette: s(r["palette"]) || "Sunlit",
+    in_zone: r["in_zone"] === "In" || r["in_zone"] === "Skip" ? (r["in_zone"] as "In" | "Skip") : "",
+    est_low: n(r["est_low"]),
+    est_high: n(r["est_high"]),
+    currency: s(r["currency"]) || "GBP",
+    venue: s(r["venue_canonical"]),
+    sale_date: s(r["sale_date"]),
+    strong_venue_candidate: false,
+    condition_checked: false,
+    taste_ok: false,
+  };
+
+  // The confidence stamp on the ledger is the weaker of the two machine calls.
+  const conf =
+    subject_confidence == null && palette_confidence == null
+      ? null
+      : Math.min(subject_confidence ?? 1, palette_confidence ?? 1);
+
+  return {
+    form,
+    sale_key: s(r["sale_key"]),
+    source_ref: (r["lot_url"] as string | null) ?? (r["source_ref"] as string | null) ?? null,
+    classification_confidence: conf,
+    band_verdict: (r["band_verdict"] as string | null) ?? null,
+    band_label: (r["band_label"] as string | null) ?? null,
+    radar_reason: (r["radar_reason"] as string | null) ?? null,
+    subject_confidence,
+    palette_confidence,
+  };
+}
+
+/** Link the radar row to the ledger row it became. It then leaves /radar. */
+export async function markUpcomingPromoted(sale_key: string): Promise<void> {
+  const { data } = await sb.from("lots").select("lot_id").eq("sale_key", sale_key).maybeSingle();
+  const lot_id = (data as { lot_id?: string } | null)?.lot_id ?? null;
+  if (!lot_id) return; // scored under a different key: leave it on the radar rather than orphan it
+  const { error } = await sb
+    .from("upcoming_lots")
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    .update({ promoted_lot_id: lot_id, promoted_at: new Date().toISOString() } as any)
+    .eq("sale_key", sale_key);
+  if (error) throw error;
+}
+
 /** Auto-log on every score: writes the verdict note AND the structured candidate row. */
-export async function logVerdict(f: LotForm, d: Decision): Promise<void> {
+export async function logVerdict(
+  f: LotForm,
+  d: Decision,
+  capture?: Partial<LotRowMeta>,
+): Promise<void> {
   await upsertLotNote({
     sale_key: d.lot.sale_key, artist_id: f.artist_id, decision: d.decision,
     body: verdictBody(f, d, `SCORED: ${todayISO()}.`),
     valid_to: lotValidTo(f.sale_date, d.vault?.valid_to ?? null), valid_from: todayISO(),
   });
-  await upsertLotRow(f, d);
+  await upsertLotRow(f, d, capture);
+  if (capture?.captured_by === "radar") await markUpcomingPromoted(d.lot.sale_key);
 }
+
 
 export async function commitLotClient(f: LotForm, act: CommitActuals): Promise<CommitResult> {
   const d = await scoreLotClient(f);
