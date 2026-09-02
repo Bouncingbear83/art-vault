@@ -6,12 +6,16 @@ import { AppShell } from "@/components/art/app-shell";
 import { Chip, EmptyState, Stat } from "@/components/art/primitives";
 import { fetchArtistOptions, gbp } from "@/lib/art360";
 import {
-  AUTHORSHIPS, PALETTES, SUBJECTS, commitLadderGuard, commitLotClient, emptyLot, logVerdict, scoreLotClient,
-  type CommitActuals, type LotForm,
+  AUTHORSHIPS, PALETTES, SUBJECTS, commitLadderGuard, commitLotClient, emptyLot, hydrateFromUpcoming,
+  logVerdict, scoreLotClient,
+  type CommitActuals, type LotForm, type RadarHydration,
 } from "@/lib/desk-ui";
 import type { Decision } from "@/lib/desk/score";
 
 export const Route = createFileRoute("/_authenticated/desk/score")({
+  // ?sale_key=... is the radar handoff. Anything else is the manual form.
+  validateSearch: (s: Record<string, unknown>): { sale_key?: string } =>
+    typeof s['sale_key'] === "string" && s['sale_key'] ? { sale_key: s['sale_key'] } : {},
   head: () => ({
     meta: [
       { title: "Score a lot — Art360" },
@@ -34,23 +38,58 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
 
 function ScoreLot() {
   const qc = useQueryClient();
+  const { sale_key } = Route.useSearch();
   const [f, setF] = useState<LotForm>(emptyLot());
   const [result, setResult] = useState<Decision | null>(null);
+  const [radar, setRadar] = useState<RadarHydration | null>(null);
+  // A promoted lot arrives with taste UNANSWERED. emptyLot() defaults it true,
+  // which would answer the one gate the radar is forbidden to touch, so the
+  // ladder is withheld until this is set either way.
+  const [tasteAnswered, setTasteAnswered] = useState(true);
   const set = <K extends keyof LotForm>(k: K, v: LotForm[K]) => setF((p) => ({ ...p, [k]: v }));
   const numOrNull = (s: string): number | null => (s.trim() === "" ? null : Number(s));
 
   const { data: artists } = useQuery({ queryKey: ["artist-options"], queryFn: fetchArtistOptions });
 
+  const { data: hydrated, error: hydrateErr } = useQuery({
+    queryKey: ["radar-hydrate", sale_key],
+    queryFn: () => hydrateFromUpcoming(sale_key!),
+    enabled: !!sale_key,
+  });
+
+  useEffect(() => {
+    if (!hydrated) return;
+    setF(hydrated.form);
+    setRadar(hydrated);
+    setTasteAnswered(false);
+  }, [hydrated]);
+
+  useEffect(() => {
+    if (hydrateErr) toast.error((hydrateErr as Error).message);
+  }, [hydrateErr]);
+
   const score = useMutation({
     mutationFn: async () => {
       const d = await scoreLotClient(f);
-      await logVerdict(f, d); // auto-log: verdict note + lots candidate row, deduped by sale_key
+      // Same mapper, same ledger shape; only the provenance differs.
+      await logVerdict(
+        f,
+        d,
+        radar
+          ? {
+              captured_by: "radar" as const,
+              source_ref: radar.source_ref,
+              classification_confidence: radar.classification_confidence,
+            }
+          : undefined,
+      );
       return d;
     },
     onSuccess: (d) => {
       setResult(d);
       qc.invalidateQueries({ queryKey: ["deal-log"] });
       qc.invalidateQueries({ queryKey: ["scored-lots"] });
+      qc.invalidateQueries({ queryKey: ["radar"] });
     },
     onError: (e: Error) => { setResult(null); toast.error(e.message); },
   });
@@ -66,6 +105,25 @@ function ScoreLot() {
           ← Candidates
         </Link>
       </div>
+
+      {radar && (
+        <div className="wall-card mb-6 space-y-2 border-l-2 border-ochre p-5">
+          <div className="flex flex-wrap items-center gap-2">
+            <Chip tone="ochre">from radar</Chip>
+            {radar.band_verdict && <Chip tone="muted">{radar.band_verdict} {radar.band_label}</Chip>}
+            {radar.radar_reason && (
+              <span className="label-caps text-muted-foreground">{radar.radar_reason}</span>
+            )}
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Subject and palette were classified by machine
+            {radar.subject_confidence != null && ` (subject ${radar.subject_confidence.toFixed(2)}`}
+            {radar.palette_confidence != null && `, palette ${radar.palette_confidence.toFixed(2)}`}
+            {radar.subject_confidence != null && ")"}, and the palette was read from the title alone.
+            Check both before scoring. Taste and strong-venue are unset by design: the radar cannot answer them.
+          </p>
+        </div>
+      )}
 
       <div className="grid gap-8 lg:grid-cols-[1fr_1fr]">
         {/* ---------------- form ---------------- */}
@@ -152,7 +210,11 @@ function ScoreLot() {
               Strong-venue candidate
             </label>
             <label className="label-caps flex items-center gap-2">
-              <input type="checkbox" checked={f.taste_ok} onChange={(e) => set("taste_ok", e.target.checked)} />
+              <input
+                type="checkbox"
+                checked={f.taste_ok}
+                onChange={(e) => { set("taste_ok", e.target.checked); setTasteAnswered(true); }}
+              />
               Glad to own (taste)
             </label>
             <label className="label-caps flex items-center gap-2">
@@ -161,12 +223,36 @@ function ScoreLot() {
             </label>
           </div>
 
+          {!tasteAnswered && (
+            <div className="space-y-2 border-l-2 border-ochre pl-3">
+              <p className="text-xs text-ochre">
+                Would you be glad to own this at a fair price if it never re-rates? Answer before the ladder is computed.
+              </p>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => { set("taste_ok", true); setTasteAnswered(true); }}
+                  className="label-caps rounded-sm border border-harbour px-3 py-1.5 text-harbour"
+                >
+                  Yes
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { set("taste_ok", false); setTasteAnswered(true); }}
+                  className="label-caps rounded-sm border border-border px-3 py-1.5 text-muted-foreground"
+                >
+                  No
+                </button>
+              </div>
+            </div>
+          )}
+
           <button
             type="submit"
-            disabled={score.isPending}
+            disabled={score.isPending || !tasteAnswered}
             className="label-caps w-full rounded-sm border border-harbour px-4 py-2.5 text-harbour transition-colors hover:bg-harbour hover:text-background disabled:opacity-50"
           >
-            {score.isPending ? "Scoring…" : "Score lot"}
+            {score.isPending ? "Scoring…" : !tasteAnswered ? "Answer the taste gate" : "Score lot"}
           </button>
         </form>
 
