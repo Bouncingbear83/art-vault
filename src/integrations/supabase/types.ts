@@ -1600,7 +1600,7 @@ export type Database = {
       ratify_desk_params: {
         Args: {
           p_band_factor_cap?: number
-          p_band_floor_gbp: number
+          p_band_floor_gbp?: number
           p_band_n_gate?: number
           p_discount_firm: number
           p_discount_stretch: number
