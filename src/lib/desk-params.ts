@@ -34,6 +34,7 @@ export interface DeskParamsFull {
   sleeve_ceiling_multiple: number | null;
   band_factor_cap: number | null;
   band_floor_gbp: number | null;
+  max_work_gbp: number | null;
   note: string | null;
 }
 
