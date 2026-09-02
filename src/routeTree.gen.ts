@@ -33,6 +33,7 @@ import { Route as AuthenticatedNotesNewRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedPositionsIndexRouteImport } from './routes/_authenticated/positions.index'
 import { Route as AuthenticatedRadarIndexRouteImport } from './routes/_authenticated/radar/index'
 import { Route as ApiPublicCompsRouteImport } from './routes/api/public/comps'
+import { Route as ApiPublicRosterRouteImport } from './routes/api/public/roster'
 import { Route as ApiPublicScoreUpcomingRouteImport } from './routes/api/public/score-upcoming'
 import { Route as AuthenticatedNotesNoteIdEditRouteImport } from './routes/_authenticated/notes.$noteId.edit'
 
@@ -164,6 +165,11 @@ const ApiPublicCompsRoute = ApiPublicCompsRouteImport.update({
   path: '/api/public/comps',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicRosterRoute = ApiPublicRosterRouteImport.update({
+  id: '/api/public/roster',
+  path: '/api/public/roster',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicScoreUpcomingRoute = ApiPublicScoreUpcomingRouteImport.update({
   id: '/api/public/score-upcoming',
   path: '/api/public/score-upcoming',
@@ -194,6 +200,7 @@ export interface FileRoutesByFullPath {
   '/desk/score': typeof AuthenticatedDeskScoreRoute
   '/notes/new': typeof AuthenticatedNotesNewRoute
   '/api/public/comps': typeof ApiPublicCompsRoute
+  '/api/public/roster': typeof ApiPublicRosterRoute
   '/api/public/score-upcoming': typeof ApiPublicScoreUpcomingRoute
   '/artists/': typeof AuthenticatedArtistsIndexRoute
   '/book/': typeof AuthenticatedBookIndexRoute
@@ -221,6 +228,7 @@ export interface FileRoutesByTo {
   '/desk/score': typeof AuthenticatedDeskScoreRoute
   '/notes/new': typeof AuthenticatedNotesNewRoute
   '/api/public/comps': typeof ApiPublicCompsRoute
+  '/api/public/roster': typeof ApiPublicRosterRoute
   '/api/public/score-upcoming': typeof ApiPublicScoreUpcomingRoute
   '/artists': typeof AuthenticatedArtistsIndexRoute
   '/book': typeof AuthenticatedBookIndexRoute
@@ -250,6 +258,7 @@ export interface FileRoutesById {
   '/_authenticated/desk/score': typeof AuthenticatedDeskScoreRoute
   '/_authenticated/notes/new': typeof AuthenticatedNotesNewRoute
   '/api/public/comps': typeof ApiPublicCompsRoute
+  '/api/public/roster': typeof ApiPublicRosterRoute
   '/api/public/score-upcoming': typeof ApiPublicScoreUpcomingRoute
   '/_authenticated/artists/': typeof AuthenticatedArtistsIndexRoute
   '/_authenticated/book/': typeof AuthenticatedBookIndexRoute
@@ -279,6 +288,7 @@ export interface FileRouteTypes {
     | '/desk/score'
     | '/notes/new'
     | '/api/public/comps'
+    | '/api/public/roster'
     | '/api/public/score-upcoming'
     | '/artists/'
     | '/book/'
@@ -306,6 +316,7 @@ export interface FileRouteTypes {
     | '/desk/score'
     | '/notes/new'
     | '/api/public/comps'
+    | '/api/public/roster'
     | '/api/public/score-upcoming'
     | '/artists'
     | '/book'
@@ -334,6 +345,7 @@ export interface FileRouteTypes {
     | '/_authenticated/desk/score'
     | '/_authenticated/notes/new'
     | '/api/public/comps'
+    | '/api/public/roster'
     | '/api/public/score-upcoming'
     | '/_authenticated/artists/'
     | '/_authenticated/book/'
@@ -355,6 +367,7 @@ export interface RootRouteChildren {
   DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
   Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
   ApiPublicCompsRoute: typeof ApiPublicCompsRoute
+  ApiPublicRosterRoute: typeof ApiPublicRosterRoute
   ApiPublicScoreUpcomingRoute: typeof ApiPublicScoreUpcomingRoute
 }
 
@@ -528,6 +541,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicCompsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/roster': {
+      id: '/api/public/roster'
+      path: '/api/public/roster'
+      fullPath: '/api/public/roster'
+      preLoaderRoute: typeof ApiPublicRosterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/score-upcoming': {
       id: '/api/public/score-upcoming'
       path: '/api/public/score-upcoming'
@@ -623,6 +643,7 @@ const rootRouteChildren: RootRouteChildren = {
   DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
   Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
   ApiPublicCompsRoute: ApiPublicCompsRoute,
+  ApiPublicRosterRoute: ApiPublicRosterRoute,
   ApiPublicScoreUpcomingRoute: ApiPublicScoreUpcomingRoute,
 }
 export const routeTree = rootRouteImport
