@@ -31,7 +31,9 @@ import { Route as AuthenticatedDeskScoreRouteImport } from './routes/_authentica
 import { Route as AuthenticatedNotesIndexRouteImport } from './routes/_authenticated/notes.index'
 import { Route as AuthenticatedNotesNewRouteImport } from './routes/_authenticated/notes.new'
 import { Route as AuthenticatedPositionsIndexRouteImport } from './routes/_authenticated/positions.index'
+import { Route as AuthenticatedRadarIndexRouteImport } from './routes/_authenticated/radar/index'
 import { Route as ApiPublicCompsRouteImport } from './routes/api/public/comps'
+import { Route as ApiPublicScoreUpcomingRouteImport } from './routes/api/public/score-upcoming'
 import { Route as AuthenticatedNotesNoteIdEditRouteImport } from './routes/_authenticated/notes.$noteId.edit'
 
 const IndexRoute = IndexRouteImport.update({
@@ -152,9 +154,19 @@ const AuthenticatedPositionsIndexRoute =
     path: '/positions/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedRadarIndexRoute = AuthenticatedRadarIndexRouteImport.update({
+  id: '/radar/',
+  path: '/radar/',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const ApiPublicCompsRoute = ApiPublicCompsRouteImport.update({
   id: '/api/public/comps',
   path: '/api/public/comps',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicScoreUpcomingRoute = ApiPublicScoreUpcomingRouteImport.update({
+  id: '/api/public/score-upcoming',
+  path: '/api/public/score-upcoming',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedNotesNoteIdEditRoute =
@@ -182,11 +194,13 @@ export interface FileRoutesByFullPath {
   '/desk/score': typeof AuthenticatedDeskScoreRoute
   '/notes/new': typeof AuthenticatedNotesNewRoute
   '/api/public/comps': typeof ApiPublicCompsRoute
+  '/api/public/score-upcoming': typeof ApiPublicScoreUpcomingRoute
   '/artists/': typeof AuthenticatedArtistsIndexRoute
   '/book/': typeof AuthenticatedBookIndexRoute
   '/desk/': typeof AuthenticatedDeskIndexRoute
   '/notes/': typeof AuthenticatedNotesIndexRoute
   '/positions/': typeof AuthenticatedPositionsIndexRoute
+  '/radar/': typeof AuthenticatedRadarIndexRoute
   '/notes/$noteId/edit': typeof AuthenticatedNotesNoteIdEditRoute
 }
 export interface FileRoutesByTo {
@@ -207,11 +221,13 @@ export interface FileRoutesByTo {
   '/desk/score': typeof AuthenticatedDeskScoreRoute
   '/notes/new': typeof AuthenticatedNotesNewRoute
   '/api/public/comps': typeof ApiPublicCompsRoute
+  '/api/public/score-upcoming': typeof ApiPublicScoreUpcomingRoute
   '/artists': typeof AuthenticatedArtistsIndexRoute
   '/book': typeof AuthenticatedBookIndexRoute
   '/desk': typeof AuthenticatedDeskIndexRoute
   '/notes': typeof AuthenticatedNotesIndexRoute
   '/positions': typeof AuthenticatedPositionsIndexRoute
+  '/radar': typeof AuthenticatedRadarIndexRoute
   '/notes/$noteId/edit': typeof AuthenticatedNotesNoteIdEditRoute
 }
 export interface FileRoutesById {
@@ -234,11 +250,13 @@ export interface FileRoutesById {
   '/_authenticated/desk/score': typeof AuthenticatedDeskScoreRoute
   '/_authenticated/notes/new': typeof AuthenticatedNotesNewRoute
   '/api/public/comps': typeof ApiPublicCompsRoute
+  '/api/public/score-upcoming': typeof ApiPublicScoreUpcomingRoute
   '/_authenticated/artists/': typeof AuthenticatedArtistsIndexRoute
   '/_authenticated/book/': typeof AuthenticatedBookIndexRoute
   '/_authenticated/desk/': typeof AuthenticatedDeskIndexRoute
   '/_authenticated/notes/': typeof AuthenticatedNotesIndexRoute
   '/_authenticated/positions/': typeof AuthenticatedPositionsIndexRoute
+  '/_authenticated/radar/': typeof AuthenticatedRadarIndexRoute
   '/_authenticated/notes/$noteId/edit': typeof AuthenticatedNotesNoteIdEditRoute
 }
 export interface FileRouteTypes {
@@ -261,11 +279,13 @@ export interface FileRouteTypes {
     | '/desk/score'
     | '/notes/new'
     | '/api/public/comps'
+    | '/api/public/score-upcoming'
     | '/artists/'
     | '/book/'
     | '/desk/'
     | '/notes/'
     | '/positions/'
+    | '/radar/'
     | '/notes/$noteId/edit'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -286,11 +306,13 @@ export interface FileRouteTypes {
     | '/desk/score'
     | '/notes/new'
     | '/api/public/comps'
+    | '/api/public/score-upcoming'
     | '/artists'
     | '/book'
     | '/desk'
     | '/notes'
     | '/positions'
+    | '/radar'
     | '/notes/$noteId/edit'
   id:
     | '__root__'
@@ -312,11 +334,13 @@ export interface FileRouteTypes {
     | '/_authenticated/desk/score'
     | '/_authenticated/notes/new'
     | '/api/public/comps'
+    | '/api/public/score-upcoming'
     | '/_authenticated/artists/'
     | '/_authenticated/book/'
     | '/_authenticated/desk/'
     | '/_authenticated/notes/'
     | '/_authenticated/positions/'
+    | '/_authenticated/radar/'
     | '/_authenticated/notes/$noteId/edit'
   fileRoutesById: FileRoutesById
 }
@@ -331,6 +355,7 @@ export interface RootRouteChildren {
   DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
   Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
   ApiPublicCompsRoute: typeof ApiPublicCompsRoute
+  ApiPublicScoreUpcomingRoute: typeof ApiPublicScoreUpcomingRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -489,11 +514,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedPositionsIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/radar/': {
+      id: '/_authenticated/radar/'
+      path: '/radar'
+      fullPath: '/radar/'
+      preLoaderRoute: typeof AuthenticatedRadarIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/api/public/comps': {
       id: '/api/public/comps'
       path: '/api/public/comps'
       fullPath: '/api/public/comps'
       preLoaderRoute: typeof ApiPublicCompsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/score-upcoming': {
+      id: '/api/public/score-upcoming'
+      path: '/api/public/score-upcoming'
+      fullPath: '/api/public/score-upcoming'
+      preLoaderRoute: typeof ApiPublicScoreUpcomingRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/notes/$noteId/edit': {
@@ -518,6 +557,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedDeskIndexRoute: typeof AuthenticatedDeskIndexRoute
   AuthenticatedNotesIndexRoute: typeof AuthenticatedNotesIndexRoute
   AuthenticatedPositionsIndexRoute: typeof AuthenticatedPositionsIndexRoute
+  AuthenticatedRadarIndexRoute: typeof AuthenticatedRadarIndexRoute
   AuthenticatedNotesNoteIdEditRoute: typeof AuthenticatedNotesNoteIdEditRoute
 }
 
@@ -533,6 +573,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDeskIndexRoute: AuthenticatedDeskIndexRoute,
   AuthenticatedNotesIndexRoute: AuthenticatedNotesIndexRoute,
   AuthenticatedPositionsIndexRoute: AuthenticatedPositionsIndexRoute,
+  AuthenticatedRadarIndexRoute: AuthenticatedRadarIndexRoute,
   AuthenticatedNotesNoteIdEditRoute: AuthenticatedNotesNoteIdEditRoute,
 }
 
@@ -582,6 +623,7 @@ const rootRouteChildren: RootRouteChildren = {
   DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
   Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
   ApiPublicCompsRoute: ApiPublicCompsRoute,
+  ApiPublicScoreUpcomingRoute: ApiPublicScoreUpcomingRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.17"
+    PostgrestVersion: "14.5"
   }
   public: {
     Tables: {
@@ -27,6 +27,7 @@ export type Database = {
           inzone_finished_wc_median_gbp: number | null
           min_longest_cm: number | null
           note: string | null
+          palette_avoid: string[] | null
           paper_ceiling_gbp: number | null
           paper_primary: boolean
           strong_venue_default: boolean
@@ -44,6 +45,7 @@ export type Database = {
           inzone_finished_wc_median_gbp?: number | null
           min_longest_cm?: number | null
           note?: string | null
+          palette_avoid?: string[] | null
           paper_ceiling_gbp?: number | null
           paper_primary?: boolean
           strong_venue_default?: boolean
@@ -61,6 +63,7 @@ export type Database = {
           inzone_finished_wc_median_gbp?: number | null
           min_longest_cm?: number | null
           note?: string | null
+          palette_avoid?: string[] | null
           paper_ceiling_gbp?: number | null
           paper_primary?: boolean
           strong_venue_default?: boolean
@@ -109,6 +112,7 @@ export type Database = {
           palette_pref: string | null
           paper_sleeve: boolean | null
           play_type: Database["public"]["Enums"]["play_type_t"] | null
+          register: string
           tier: string | null
           tracked: boolean
           updated_at: string | null
@@ -124,6 +128,7 @@ export type Database = {
           palette_pref?: string | null
           paper_sleeve?: boolean | null
           play_type?: Database["public"]["Enums"]["play_type_t"] | null
+          register: string
           tier?: string | null
           tracked?: boolean
           updated_at?: string | null
@@ -139,29 +144,41 @@ export type Database = {
           palette_pref?: string | null
           paper_sleeve?: boolean | null
           play_type?: Database["public"]["Enums"]["play_type_t"] | null
+          register?: string
           tier?: string | null
           tracked?: boolean
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "artists_register_fkey"
+            columns: ["register"]
+            isOneToOne: false
+            referencedRelation: "register_defs"
+            referencedColumns: ["register_code"]
+          },
+        ]
       }
       budget: {
         Row: {
           committed_gbp: number
           envelope_gbp: number
           period_year: number
+          target_works: number | null
           updated_at: string
         }
         Insert: {
           committed_gbp?: number
           envelope_gbp?: number
           period_year: number
+          target_works?: number | null
           updated_at?: string
         }
         Update: {
           committed_gbp?: number
           envelope_gbp?: number
           period_year?: number
+          target_works?: number | null
           updated_at?: string
         }
         Relationships: []
@@ -469,6 +486,7 @@ export type Database = {
         Row: {
           arr_rate: number
           band_factor_cap: number
+          band_floor_gbp: number | null
           band_n_gate: number
           bp_pct_default: number
           collector_discount_firm: number
@@ -476,6 +494,7 @@ export type Database = {
           created_at: string
           effective_from: string
           homogeneity_threshold: number
+          max_work_gbp: number
           n_gate: number
           note: string | null
           params_id: string
@@ -488,6 +507,7 @@ export type Database = {
         Insert: {
           arr_rate?: number
           band_factor_cap?: number
+          band_floor_gbp?: number | null
           band_n_gate?: number
           bp_pct_default?: number
           collector_discount_firm: number
@@ -495,6 +515,7 @@ export type Database = {
           created_at?: string
           effective_from?: string
           homogeneity_threshold?: number
+          max_work_gbp?: number
           n_gate?: number
           note?: string | null
           params_id?: string
@@ -507,6 +528,7 @@ export type Database = {
         Update: {
           arr_rate?: number
           band_factor_cap?: number
+          band_floor_gbp?: number | null
           band_n_gate?: number
           bp_pct_default?: number
           collector_discount_firm?: number
@@ -514,6 +536,7 @@ export type Database = {
           created_at?: string
           effective_from?: string
           homogeneity_threshold?: number
+          max_work_gbp?: number
           n_gate?: number
           note?: string | null
           params_id?: string
@@ -522,6 +545,33 @@ export type Database = {
           sleeve_ceiling_multiple?: number
           stale_haircut?: number
           vat_premium?: number
+        }
+        Relationships: []
+      }
+      desk_params_write_audit: {
+        Row: {
+          audit_id: number
+          db_role: string
+          logged_at: string
+          note: string | null
+          params_id: string | null
+          source: string
+        }
+        Insert: {
+          audit_id?: never
+          db_role?: string
+          logged_at?: string
+          note?: string | null
+          params_id?: string | null
+          source?: string
+        }
+        Update: {
+          audit_id?: never
+          db_role?: string
+          logged_at?: string
+          note?: string | null
+          params_id?: string | null
+          source?: string
         }
         Relationships: []
       }
@@ -568,6 +618,8 @@ export type Database = {
           quality_delta_input: number | null
           quality_delta_value: number | null
           quality_override_reason: string | null
+          result_captured_at: string | null
+          result_hammer_gbp: number | null
           sale_context: string | null
           sale_date: string | null
           sale_key: string
@@ -624,6 +676,8 @@ export type Database = {
           quality_delta_input?: number | null
           quality_delta_value?: number | null
           quality_override_reason?: string | null
+          result_captured_at?: string | null
+          result_hammer_gbp?: number | null
           sale_context?: string | null
           sale_date?: string | null
           sale_key: string
@@ -680,6 +734,8 @@ export type Database = {
           quality_delta_input?: number | null
           quality_delta_value?: number | null
           quality_override_reason?: string | null
+          result_captured_at?: string | null
+          result_hammer_gbp?: number | null
           sale_context?: string | null
           sale_date?: string | null
           sale_key?: string
@@ -964,6 +1020,33 @@ export type Database = {
           },
         ]
       }
+      register_defs: {
+        Row: {
+          active: boolean
+          created_at: string
+          description: string
+          label: string
+          register_code: string
+          sort_order: number
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          description: string
+          label: string
+          register_code: string
+          sort_order?: number
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          description?: string
+          label?: string
+          register_code?: string
+          sort_order?: number
+        }
+        Relationships: []
+      }
       size_band_defs: {
         Row: {
           band_label: string
@@ -1053,6 +1136,207 @@ export type Database = {
           },
         ]
       }
+      upcoming_lots: {
+        Row: {
+          artist_id: string | null
+          artist_raw: string
+          authorship: string
+          band_firm_hammer_gbp: number | null
+          band_label: string | null
+          band_verdict: string | null
+          classification_json: Json | null
+          created_at: string
+          currency: string | null
+          dismissed_at: string | null
+          dismissed_reason: string | null
+          est_high: number | null
+          est_low: number | null
+          first_seen_at: string
+          geo_resolved: string | null
+          h_cm: number | null
+          image_url: string | null
+          in_zone: string | null
+          last_seen_at: string
+          longest_cm: number | null
+          lot_url: string | null
+          medium_class: string | null
+          medium_raw: string | null
+          outcome_basis: string | null
+          outcome_captured_at: string | null
+          outcome_currency: string | null
+          outcome_hammer_native: number | null
+          outcome_status: string | null
+          palette: string | null
+          palette_confidence: number | null
+          palette_kw_only: boolean
+          paper_ceiling_gbp: number | null
+          params_id: string | null
+          promoted_at: string | null
+          promoted_lot_id: string | null
+          radar_lane: string
+          radar_rank: number | null
+          radar_reason: string | null
+          sale_date: string | null
+          sale_key: string
+          scored_at: string | null
+          source: string
+          source_ref: string | null
+          staged_batch: string | null
+          subject: string | null
+          subject_confidence: number | null
+          title: string
+          updated_at: string
+          venue_canonical: string | null
+          venue_raw: string | null
+          vtype_resolved: string | null
+          w_cm: number | null
+        }
+        Insert: {
+          artist_id?: string | null
+          artist_raw: string
+          authorship?: string
+          band_firm_hammer_gbp?: number | null
+          band_label?: string | null
+          band_verdict?: string | null
+          classification_json?: Json | null
+          created_at?: string
+          currency?: string | null
+          dismissed_at?: string | null
+          dismissed_reason?: string | null
+          est_high?: number | null
+          est_low?: number | null
+          first_seen_at?: string
+          geo_resolved?: string | null
+          h_cm?: number | null
+          image_url?: string | null
+          in_zone?: string | null
+          last_seen_at?: string
+          longest_cm?: number | null
+          lot_url?: string | null
+          medium_class?: string | null
+          medium_raw?: string | null
+          outcome_basis?: string | null
+          outcome_captured_at?: string | null
+          outcome_currency?: string | null
+          outcome_hammer_native?: number | null
+          outcome_status?: string | null
+          palette?: string | null
+          palette_confidence?: number | null
+          palette_kw_only?: boolean
+          paper_ceiling_gbp?: number | null
+          params_id?: string | null
+          promoted_at?: string | null
+          promoted_lot_id?: string | null
+          radar_lane?: string
+          radar_rank?: number | null
+          radar_reason?: string | null
+          sale_date?: string | null
+          sale_key: string
+          scored_at?: string | null
+          source: string
+          source_ref?: string | null
+          staged_batch?: string | null
+          subject?: string | null
+          subject_confidence?: number | null
+          title: string
+          updated_at?: string
+          venue_canonical?: string | null
+          venue_raw?: string | null
+          vtype_resolved?: string | null
+          w_cm?: number | null
+        }
+        Update: {
+          artist_id?: string | null
+          artist_raw?: string
+          authorship?: string
+          band_firm_hammer_gbp?: number | null
+          band_label?: string | null
+          band_verdict?: string | null
+          classification_json?: Json | null
+          created_at?: string
+          currency?: string | null
+          dismissed_at?: string | null
+          dismissed_reason?: string | null
+          est_high?: number | null
+          est_low?: number | null
+          first_seen_at?: string
+          geo_resolved?: string | null
+          h_cm?: number | null
+          image_url?: string | null
+          in_zone?: string | null
+          last_seen_at?: string
+          longest_cm?: number | null
+          lot_url?: string | null
+          medium_class?: string | null
+          medium_raw?: string | null
+          outcome_basis?: string | null
+          outcome_captured_at?: string | null
+          outcome_currency?: string | null
+          outcome_hammer_native?: number | null
+          outcome_status?: string | null
+          palette?: string | null
+          palette_confidence?: number | null
+          palette_kw_only?: boolean
+          paper_ceiling_gbp?: number | null
+          params_id?: string | null
+          promoted_at?: string | null
+          promoted_lot_id?: string | null
+          radar_lane?: string
+          radar_rank?: number | null
+          radar_reason?: string | null
+          sale_date?: string | null
+          sale_key?: string
+          scored_at?: string | null
+          source?: string
+          source_ref?: string | null
+          staged_batch?: string | null
+          subject?: string | null
+          subject_confidence?: number | null
+          title?: string
+          updated_at?: string
+          venue_canonical?: string | null
+          venue_raw?: string | null
+          vtype_resolved?: string | null
+          w_cm?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "upcoming_lots_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "artist_360"
+            referencedColumns: ["artist_id"]
+          },
+          {
+            foreignKeyName: "upcoming_lots_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "artists"
+            referencedColumns: ["artist_id"]
+          },
+          {
+            foreignKeyName: "upcoming_lots_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "book_screen"
+            referencedColumns: ["artist_id"]
+          },
+          {
+            foreignKeyName: "upcoming_lots_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "play_type_audit"
+            referencedColumns: ["artist_id"]
+          },
+          {
+            foreignKeyName: "upcoming_lots_promoted_lot_id_fkey"
+            columns: ["promoted_lot_id"]
+            isOneToOne: false
+            referencedRelation: "lots"
+            referencedColumns: ["lot_id"]
+          },
+        ]
+      }
       vocab_note_tag: {
         Row: {
           description: string | null
@@ -1104,6 +1388,41 @@ export type Database = {
           tier: string | null
           zone_conf: string | null
           zone_fitness: string | null
+        }
+        Relationships: []
+      }
+      artist_buy_band: {
+        Row: {
+          all_in_at_firm_gbp: number | null
+          arr_live: boolean | null
+          artist_id: string | null
+          band_ceiling_gbp: number | null
+          band_floor_gbp: number | null
+          band_hi: number | null
+          band_label: string | null
+          band_median_gbp: number | null
+          band_n_gate: number | null
+          band_realisation: number | null
+          band_verdict: string | null
+          concentration_ratio: number | null
+          firm_hammer_gbp: number | null
+          k_buy: number | null
+          max_work_gbp: number | null
+          min_longest_cm: number | null
+          n_below_min_excluded: number | null
+          n_low_value_excluded: number | null
+          n_offered: number | null
+          n_palette_excluded: number | null
+          n_sold: number | null
+          n_sold_recent: number | null
+          n_unsold: number | null
+          per_work_budget_gbp: number | null
+          play_type: Database["public"]["Enums"]["play_type_t"] | null
+          recency_cutoff: number | null
+          recency_drift: number | null
+          recent_median_gbp: number | null
+          sell_through_pct: number | null
+          sort_order: number | null
         }
         Relationships: []
       }
@@ -1230,6 +1549,7 @@ export type Database = {
         Row: {
           arr_rate: number | null
           band_factor_cap: number | null
+          band_floor_gbp: number | null
           band_n_gate: number | null
           bp_pct_default: number | null
           collector_discount_firm: number | null
@@ -1237,6 +1557,7 @@ export type Database = {
           created_at: string | null
           effective_from: string | null
           homogeneity_threshold: number | null
+          max_work_gbp: number | null
           n_gate: number | null
           note: string | null
           params_id: string | null
@@ -1276,6 +1597,18 @@ export type Database = {
       _recompute_budget_year: { Args: { yr: number }; Returns: undefined }
       apply_sleeve_multiple: { Args: { p_multiple: number }; Returns: number }
       is_owner: { Args: never; Returns: boolean }
+      ratify_desk_params: {
+        Args: {
+          p_band_factor_cap?: number
+          p_band_floor_gbp: number
+          p_band_n_gate?: number
+          p_discount_firm: number
+          p_discount_stretch: number
+          p_max_work_gbp?: number
+          p_note: string
+        }
+        Returns: string
+      }
       update_note: {
         Args: {
           p_action_status?: Database["public"]["Enums"]["action_status_t"]
