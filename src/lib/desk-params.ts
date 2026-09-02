@@ -60,6 +60,7 @@ export async function fetchDeskParamsFull(): Promise<DeskParamsFull | null> {
     sleeve_ceiling_multiple: num(r["sleeve_ceiling_multiple"]),
     band_factor_cap: num(r["band_factor_cap"]),
     band_floor_gbp: num(r["band_floor_gbp"]),
+    max_work_gbp: num(r["max_work_gbp"]),
     note: (r["note"] as string) ?? null,
   };
 }
