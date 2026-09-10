@@ -374,13 +374,37 @@ export const Route = createFileRoute('/api/public/score-upcoming')({
           })
         }
 
+        // Postgres raises 21000 when one INSERT ... ON CONFLICT touches the same
+        // key twice, so collapse duplicates before the upsert: keep the richest
+        // row and record the losers' lot_urls on the survivor.
+        const nonNull = (o: Record<string, unknown>) =>
+          Object.values(o).filter((v) => v != null && v !== '').length
+        const bySaleKey = new Map<string, Record<string, unknown>>()
+        let collapsed = 0
+        for (const row of payload as Record<string, unknown>[]) {
+          const key = String(row['sale_key'])
+          const prev = bySaleKey.get(key)
+          if (!prev) { bySaleKey.set(key, row); continue }
+          collapsed += 1
+          const [keep, drop] = nonNull(row) > nonNull(prev) ? [row, prev] : [prev, row]
+          const prior = (keep['classification_json'] ?? null) as Record<string, unknown> | null
+          const seen = Array.isArray(prior?.['key_collision']) ? (prior!['key_collision'] as unknown[]) : []
+          const dropped = (drop['lot_url'] ?? null) as string | null
+          keep['classification_json'] = {
+            ...(prior && typeof prior === 'object' ? prior : {}),
+            key_collision: [...seen, ...(dropped ? [dropped] : [])],
+          }
+          bySaleKey.set(key, keep)
+        }
+        const deduped = [...bySaleKey.values()]
+
         const { error } = await sb
           .from('upcoming_lots')
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          .upsert(payload as any, { onConflict: 'sale_key' })
+          .upsert(deduped as any, { onConflict: 'sale_key' })
         if (error) return json({ error: error.message }, 500)
 
-        return json({ ok: true, mode, rows_in: rows.length, upserted: payload.length, lanes: counts, stamp: STAMP }, 200)
+        return json({ ok: true, mode, rows_in: rows.length, upserted: deduped.length, collapsed, lanes: counts, stamp: STAMP }, 200)
       },
     },
   },
