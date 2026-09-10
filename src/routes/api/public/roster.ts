@@ -61,6 +61,8 @@ export const Route = createFileRoute('/api/public/roster')({
           return {
             artist_id: String(a['artist_id']),
             display_name: String(a['display_name']),
+            dates: (a['dates'] as string | null) ?? null,
+            birth_year: a['birth_year'] != null ? Number(a['birth_year']) : null,
             mutualart_url: (a['mutualart_url'] as string | null) ?? null,
             min_longest_cm: c ? ((c['min_longest_cm'] as number | null) ?? null) : null,
             paper_ceiling_gbp: c ? ((c['paper_ceiling_gbp'] as number | null) ?? null) : null,
