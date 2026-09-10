@@ -13,11 +13,13 @@ import { createFileRoute } from '@tanstack/react-router'
 // every run, and holds no names of its own.
 //
 // Returns one row per tracked artist:
-//   { artist_id, display_name, mutualart_url, min_longest_cm, paper_ceiling_gbp }
+//   { artist_id, display_name, dates, birth_year, mutualart_url, min_longest_cm, paper_ceiling_gbp }
 //
 // mutualart_url is the BrowserAct entry point and is constraint-checked in the
 // database against the canonical /Artist/<name>/<16-hex> form, so a null here
 // means the name genuinely has no page recorded, not that the URL is malformed.
+// birth_year and dates are included so the TheSaleroom alert can compare against
+// the printed birth year and catch same-name collisions.
 
 function authOk(request: Request): boolean {
   const secret = process.env['COMPS_SHARED_SECRET']
@@ -42,7 +44,7 @@ export const Route = createFileRoute('/api/public/roster')({
         const { supabaseAdmin: sb } = await import('@/integrations/supabase/client.server')
 
         const [artistsRes, configRes] = await Promise.all([
-          sb.from('artists').select('artist_id, display_name, mutualart_url, tracked').eq('tracked', true),
+          sb.from('artists').select('artist_id, display_name, dates, birth_year, mutualart_url, tracked').eq('tracked', true),
           sb.from('artist_desk_config').select('artist_id, min_longest_cm, paper_ceiling_gbp'),
         ])
         if (artistsRes.error) return json({ error: artistsRes.error.message }, 500)
@@ -59,6 +61,8 @@ export const Route = createFileRoute('/api/public/roster')({
           return {
             artist_id: String(a['artist_id']),
             display_name: String(a['display_name']),
+            dates: (a['dates'] as string | null) ?? null,
+            birth_year: a['birth_year'] != null ? Number(a['birth_year']) : null,
             mutualart_url: (a['mutualart_url'] as string | null) ?? null,
             min_longest_cm: c ? ((c['min_longest_cm'] as number | null) ?? null) : null,
             paper_ceiling_gbp: c ? ((c['paper_ceiling_gbp'] as number | null) ?? null) : null,
