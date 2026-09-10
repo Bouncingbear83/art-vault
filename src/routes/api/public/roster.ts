@@ -44,7 +44,7 @@ export const Route = createFileRoute('/api/public/roster')({
         const { supabaseAdmin: sb } = await import('@/integrations/supabase/client.server')
 
         const [artistsRes, configRes] = await Promise.all([
-          sb.from('artists').select('artist_id, display_name, mutualart_url, tracked').eq('tracked', true),
+          sb.from('artists').select('artist_id, display_name, dates, birth_year, mutualart_url, tracked').eq('tracked', true),
           sb.from('artist_desk_config').select('artist_id, min_longest_cm, paper_ceiling_gbp'),
         ])
         if (artistsRes.error) return json({ error: artistsRes.error.message }, 500)
