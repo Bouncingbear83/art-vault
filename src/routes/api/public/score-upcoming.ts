@@ -254,8 +254,27 @@ export const Route = createFileRoute('/api/public/score-upcoming')({
           const medium_raw = str(r['medium_raw'])
           const longest_cm = numOrNull(r['longest_cm'])
 
+          // Trust the feed's roster match first. n8n resolves artist_id against
+          // this same roster (and by MutualArt ID where it has one); the page's
+          // artist_name carries dates and post-nominals ('David Roberts
+          // (Scottish 1796-1864)') that never slug-match, which quarantined
+          // every enriched TheSaleroom row as 'artist not on the roster'.
+          // Fallback: strip the parenthetical and post-nominals, then match.
+          const fedId = str(r['artist_id'])
+          const cleaned = artist_raw
+            .replace(/\([^)]*\)/g, ' ')
+            .replace(/\b(sir|dame|lady)\b/gi, ' ')
+            .replace(/\b(RA|HRSA|RSA|RSW|RI|RE|RWS|RBA|ROI|RBS|NEA|PSA|ARSA|PRWS|LLD|RP)\b\.?,?/g, ' ')
+            .replace(/[.,]+/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim()
           const artist =
-            bySlug.get(normKey(artist_raw)) ?? byName.get(artist_raw.toLowerCase()) ?? null
+            (fedId ? bySlug.get(fedId) : undefined) ??
+            bySlug.get(normKey(artist_raw)) ??
+            bySlug.get(normKey(cleaned)) ??
+            byName.get(artist_raw.toLowerCase()) ??
+            byName.get(cleaned.toLowerCase()) ??
+            null
           const artist_id = artist?.artist_id ?? null
 
           const sale_key = [
@@ -285,8 +304,12 @@ export const Route = createFileRoute('/api/public/score-upcoming')({
               : null
           const buy = artist_id && band_label ? buyBands.get(`${artist_id}|${band_label}`) : undefined
 
-          const lowConf =
-            (subject_confidence != null && subject_confidence < CONFIDENCE_FLOOR) || paletteLowConf
+          // Subject decides the zone gate, so a weak subject call parks the row.
+          // Palette is read from the TITLE by construction and is nearly always
+          // under the floor; letting it park rows sent almost every lot to
+          // unclassified. It now ships Neutral (never Grey, never a kill) and
+          // rides as a flag for the human looking at the picture.
+          const lowConf = subject_confidence != null && subject_confidence < CONFIDENCE_FLOOR
 
           let lane: string
           let reason: string
@@ -309,7 +332,7 @@ export const Route = createFileRoute('/api/public/score-upcoming')({
             // has no vector, Wyld is a taste lane. None is a ladder lane.
             lane = 'watch'; reason = 'sleeve-name oil: collector-review'
           } else if (lowConf) {
-            lane = 'unclassified'; reason = 'subject or palette below the confidence floor'
+            lane = 'unclassified'; reason = 'subject below the confidence floor'
           } else if (in_zone === 'Skip') {
             lane = 'suppressed'; reason = 'out of zone'
           } else if (cfg?.min_longest_cm != null && longest_cm < cfg.min_longest_cm) {
@@ -329,6 +352,9 @@ export const Route = createFileRoute('/api/public/score-upcoming')({
             lane = 'watch'; reason = buy.band_verdict
           }
 
+          if (paletteLowConf && lane !== 'quarantine' && lane !== 'suppressed') {
+            reason = `${reason}; palette unread from title, look at the picture`
+          }
           counts[lane] = (counts[lane] ?? 0) + 1
 
           payload.push({
