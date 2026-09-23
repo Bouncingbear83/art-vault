@@ -38,7 +38,8 @@ export default defineTool({
     condition_checked: z.boolean().optional().describe("True if a report / verso / UV image has been seen."),
     provenance_note: z.string().optional(),
     sale_context: z.string().optional().describe("Multiples-in-sale / pair / budget conflict prose."),
-    taste_ok: z.boolean().describe("Glad to own at a fair price if it never re-rates? Hard gate."),
+    taste_ok: z.boolean().nullable().optional().describe("Glad to own at a fair price if it never re-rates? Hard gate. Omit or null = not asked yet: a lot that passes every other gate returns Monitor (taste-not-asked) and is logged without recording a call nobody made."),
+    opening_gbp: z.number().optional().describe("Live opening / starting bid in GBP where the platform shows it. A ladder below it returns Monitor (ladder-below-opening)."),
     period_year: z.number().optional().describe("Budget period; defaults to the sale year."),
     persist: z.boolean().optional().describe("Write the scored lot to the candidate ledger (default true). false = dry-run, writes nothing."),
     source_ref: z.string().optional().describe("Listing URL or MutualArt dump ref, stored on the lot for provenance."),
@@ -87,7 +88,8 @@ export default defineTool({
         condition_checked: a.condition_checked ?? false,
         provenance_note: a.provenance_note ?? null,
         sale_context: a.sale_context ?? null,
-        taste_ok: a.taste_ok,
+        taste_ok: a.taste_ok ?? null,
+        opening_gbp: a.opening_gbp ?? null,
         ...(a.in_zone ? { in_zone: a.in_zone } : {}),
       };
 
