@@ -93,6 +93,7 @@ export async function fetchDeskParams(sb: SupabaseClient): Promise<DeskParams> {
     recency_cutoff: Math.round(num(r["recency_cutoff"])),
     ...(r["band_n_gate"] != null ? { band_n_gate: Math.round(num(r["band_n_gate"])) } : {}),
     ...(r["band_factor_cap"] != null ? { band_factor_cap: num(r["band_factor_cap"]) } : {}),
+    ...(r["max_work_gbp"] != null ? { max_work_gbp: num(r["max_work_gbp"]) } : {}),
   };
 }
 
