@@ -448,10 +448,6 @@ function finalise(d: Decision, b: ScoreBundle): Decision {
     rationale: `${rationale} ${d.rationale}`.trim(), ...extra,
   });
 
-  if (lot.taste_ok == null) {
-    return hold("taste-not-asked", "Taste gate unanswered: ladder shown for the question, not for bidding.");
-  }
-
   if (d.lane !== "oil") {
     const envelope = b.budget?.envelope_gbp ?? 0;
     const remaining = envelope - (b.budget?.committed_gbp ?? 0);
@@ -483,6 +479,16 @@ function finalise(d: Decision, b: ScoreBundle): Decision {
       flags: [...d.flags, `per-work-ceiling-capped:${maxWork}`],
       rationale: `${d.rationale} Capped at the £${maxWork} per-work ceiling: hammer ≤ £${cap}.`,
     };
+    // The lane built its Lot note before the cap: rebuild it from the capped
+    // ladder so the vault never quotes a number the desk will not bid.
+    if (d.vault) {
+      d = { ...d, vault: buildVault(lot, d.lot.sale_key, "Buy", d.lane === "oil" ? d.anchor : null,
+        d.quality_delta.value, d.ladder.firm!, d.ladder.stretch, d.all_in_at_firm, d.flags) };
+    }
+  }
+
+  if (lot.taste_ok == null) {
+    return hold("taste-not-asked", "Taste gate unanswered: ladder shown for the question, not for bidding.");
   }
 
   const top = d.ladder.stretch ?? d.ladder.firm;
