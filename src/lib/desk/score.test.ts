@@ -291,3 +291,15 @@ test("per-work ceiling caps the ladder (Sharp-shaped: fair above the ceiling)", 
   expect(d.ladder.stretch!).toBeLessThanOrEqual(Math.floor(10000 / 1.336));
   expect(d.flags.some((f) => f.startsWith("per-work-ceiling-capped"))).toBe(true);
 });
+
+test("taste unanswered still shows the per-work-capped ladder", () => {
+  const d = scoreLot(bundle({ params: { ...params, max_work_gbp: 10000 }, lot: { ...kayLot, taste_ok: null }, comps: kayComps.map((c) => ({ ...c, hammer_equiv_gbp: c.hammer_equiv_gbp * 6 })) }));
+  expect(d.binding_constraint).toBe("taste-not-asked");
+  expect(d.all_in_at_firm).toBeLessThanOrEqual(10000);
+});
+
+test("capped Buy writes a Lot note quoting the capped firm", () => {
+  const d = scoreLot(bundle({ params: { ...params, max_work_gbp: 10000 }, comps: kayComps.map((c) => ({ ...c, hammer_equiv_gbp: c.hammer_equiv_gbp * 6 })) }));
+  expect(d.decision).toBe("Buy");
+  expect(d.vault?.note_body).toContain(`firm £${d.ladder.firm}`);
+});
