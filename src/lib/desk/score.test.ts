@@ -209,3 +209,85 @@ test("paper sleeve: a watercolour for a name with no ceiling is a medium skip", 
   expect(d.binding_constraint).toBe("medium");
   expect(d.ladder.firm).toBeNull();
 });
+
+/* ------------------ 2026-09-23: shared gates and zone sync ----------------- */
+
+// Ninnes-shaped regression: a Buy was returned with firm £105 against a £180
+// opening and a £300 low estimate. A walk-away that cannot be bid is not a Buy.
+const cheapComps: CompRow[] = [60, 90, 115, 150, 190, 210, 285, 400, 500].map((v) => ({
+  hammer_equiv_gbp: v, in_zone: "In", vtype_resolved: "Buy_Regional",
+  medium_class: "Oil", longest_cm: 50, sale_date: "2024-06-01",
+}));
+const ninnesCfg: DeskConfig = { ...kayCfg, artist_id: "bernard-ninnes", arr_active_until: "2041-12-31" };
+const ninnesLot = {
+  ...kayLot, artist_id: "bernard-ninnes", title: "A Cornish Backwater", subject: "Harbour/Marine",
+  longest_cm: 75, venue: "Lay's Auctioneers", strong_venue_candidate: false, bp_pct: 0.2595,
+  est_low: 300, est_high: 500,
+};
+
+test("ladder below the likely reserve is Monitor, not Buy (ladder kept)", () => {
+  const d = scoreLot(bundle({ lot: ninnesLot, comps: cheapComps, config: ninnesCfg }));
+  expect(d.decision).toBe("Monitor");
+  expect(d.binding_constraint).toBe("ladder-below-likely-reserve");
+  expect(d.ladder.firm).not.toBeNull();
+  expect(d.vault).toBeNull();
+});
+
+test("ladder below the opening is Monitor with its own reason", () => {
+  const d = scoreLot(bundle({ lot: { ...ninnesLot, est_low: null, opening_gbp: 180 }, comps: cheapComps, config: ninnesCfg }));
+  expect(d.decision).toBe("Monitor");
+  expect(d.binding_constraint).toBe("ladder-below-opening");
+});
+
+test("ARR is not charged below the threshold hammer", () => {
+  const d = scoreLot(bundle({ lot: { ...ninnesLot, est_low: null }, comps: cheapComps, config: ninnesCfg }));
+  // fair 190, firm = 190*0.75 / (1 + 0.2595*1.2) = 108.6, not /1.351 = 105
+  expect(d.ladder.firm).toBe(109);
+  expect(d.K_buy).toBe(1.311);
+  expect(d.flags).toContain("arr-below-threshold:850");
+});
+
+test("ARR still charged when the walk-away clears the threshold", () => {
+  const cfg: DeskConfig = { ...kayCfg, arr_active_until: "2032-12-31" };
+  const d = scoreLot(bundle({ config: cfg }));
+  expect(d.K_buy).toBe(1.376);
+  expect(d.ladder.firm).toBe(Math.round((2551 * 0.75) / 1.376));
+});
+
+test("taste unanswered: Monitor with the ladder shown, never a Buy", () => {
+  const d = scoreLot(bundle({ lot: { ...kayLot, taste_ok: null } }));
+  expect(d.decision).toBe("Monitor");
+  expect(d.binding_constraint).toBe("taste-not-asked");
+  expect(d.ladder.firm).toBe(1432);
+  expect(d.taste_ok).toBeNull();
+});
+
+test("taste unanswered does not mask an earlier gate failure", () => {
+  const d = scoreLot(bundle({ lot: { ...kayLot, taste_ok: null, authorship: "Attributed" } }));
+  expect(d.decision).toBe("Skip");
+  expect(d.binding_constraint).toBe("authorship");
+});
+
+test("paper lane now obeys the budget gate", () => {
+  const d = scoreLot(bundle({ lot: wyldSheet, config: wyldCfg, comps: [], budget: { period_year: 2026, envelope_gbp: 0, committed_gbp: 0 } }));
+  expect(d.decision).toBe("Monitor");
+  expect(d.binding_constraint).toBe("no-envelope");
+});
+
+test("zone sync v9: Floral Skip by default, In for Sharp; Garden/Park In", () => {
+  const flo = scoreLot(bundle({ lot: { ...kayLot, subject: "Floral/Still-life" } }));
+  expect(flo.binding_constraint).toBe("subject-zone");
+  const sharp = scoreLot(bundle({ lot: { ...kayLot, artist_id: "dorothea-sharp", subject: "Floral/Still-life" }, config: { ...kayCfg, artist_id: "dorothea-sharp" } }));
+  expect(sharp.binding_constraint).not.toBe("subject-zone");
+  const gp = scoreLot(bundle({ lot: { ...kayLot, subject: "Garden/Park" } }));
+  expect(gp.binding_constraint).not.toBe("subject-zone");
+  const mac = scoreLot(bundle({ lot: { ...kayLot, artist_id: "john-macwhirter", subject: "Harbour/Marine" }, config: { ...kayCfg, artist_id: "john-macwhirter" } }));
+  expect(mac.binding_constraint).toBe("subject-zone");
+});
+
+test("per-work ceiling caps the ladder (Sharp-shaped: fair above the ceiling)", () => {
+  const d = scoreLot(bundle({ params: { ...params, max_work_gbp: 10000 }, lot: { ...kayLot } , comps: kayComps.map((c) => ({ ...c, hammer_equiv_gbp: c.hammer_equiv_gbp * 6 })) }));
+  expect(d.all_in_at_firm).toBeLessThanOrEqual(10000);
+  expect(d.ladder.stretch!).toBeLessThanOrEqual(Math.floor(10000 / 1.336));
+  expect(d.flags.some((f) => f.startsWith("per-work-ceiling-capped"))).toBe(true);
+});
