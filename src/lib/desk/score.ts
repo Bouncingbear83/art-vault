@@ -26,18 +26,45 @@ const TIER_PREF: Tier[] = ["Buy_Regional", "Straddle", "Exit_Strong"];
 // Taste zone (mirrors mandate §D vocab; keep in lockstep with the Sheet).
 const ZONE_IN = new Set([
   "Venice", "Harbour/Marine", "Beach", "Market/Street", "River/City",
-  "Brittany", "Lake/Como", "Nile/Egypt", "Ruins/Antiquity", "Floral/Still-life",
+  "Brittany", "Lake/Como", "Nile/Egypt", "Ruins/Antiquity", "Garden/Park",
 ]);
-const ZONE_SKIP = new Set(["Mountain/Alpine", "Townscape", "Pastoral", "Interior", "Other"]);
+// Floral/Still-life is Skip by default and In only by per-artist override
+// (mandate v9 §D; v7.x/v8 listing it as default In was wrong against the Sheet).
+const ZONE_SKIP = new Set(["Mountain/Alpine", "Townscape", "Pastoral", "Floral/Still-life", "Interior", "Other"]);
 // Per-artist overrides, keyed by a token found in artist_id, then subject.
+// Mirror of the Sheet's Subjects tab (override-only rows). The Sheet governs:
+// when a Subjects row changes, change it here in the same session.
+const ARMOUR_SKIP = ["Venice", "Harbour/Marine", "Beach", "Market/Street", "River/City",
+  "Brittany", "Lake/Como", "Nile/Egypt", "Ruins/Antiquity"];
 const ZONE_OVERRIDES: Array<{ token: string; subject: string; zone: "In" | "Skip" }> = [
   { token: "stokes", subject: "Mountain/Alpine", zone: "In" },
-  { token: "east", subject: "Mountain/Alpine", zone: "In" },
+  { token: "alfred-east", subject: "Mountain/Alpine", zone: "In" },
   { token: "forbes", subject: "Pastoral", zone: "In" },
   { token: "olsson", subject: "River/City", zone: "Skip" },
   { token: "roberts", subject: "Interior", zone: "In" },
   { token: "brangwyn", subject: "Floral/Still-life", zone: "Skip" },
+  { token: "airy", subject: "Floral/Still-life", zone: "In" },
+  { token: "bland", subject: "Floral/Still-life", zone: "In" },
+  { token: "ethel-walker", subject: "Floral/Still-life", zone: "In" },
+  { token: "sharp", subject: "Floral/Still-life", zone: "In" },
+  { token: "estelle-rice", subject: "Floral/Still-life", zone: "In" },
+  { token: "macwhirter", subject: "Harbour/Marine", zone: "Skip" },
+  { token: "macwhirter", subject: "Ruins/Antiquity", zone: "Skip" },
+  { token: "macwhirter", subject: "River/City", zone: "Skip" },
+  { token: "armour", subject: "Floral/Still-life", zone: "In" },
+  ...ARMOUR_SKIP.map((subject) => ({ token: "armour", subject, zone: "Skip" as const })),
 ];
+
+// ARR: droit de suite applies only where the sale price reaches EUR 1,000.
+// Held in GBP at the conservative end of the conversion so a hammer near the
+// line is treated as ARR-live. Statutory; move to desk_params when the
+// ratify RPC next changes.
+export const ARR_THRESHOLD_GBP = 850;
+
+// UK houses set the reserve at or below the low estimate, with discretion
+// usually no more than ~20% below it. A walk-away under this fraction of the
+// low estimate will rarely clear in the room.
+export const RESERVE_FLOOR_OF_LOW_EST = 0.8;
 
 /* ------------------------------- types --------------------------------- */
 
@@ -77,6 +104,7 @@ export interface DeskParams {
   recency_cutoff: number;
   band_n_gate?: number;      // default 5; min n for a band cell to scale a bid
   band_factor_cap?: number;  // default 1.5; uplift cap. Downside uncapped by design
+  max_work_gbp?: number;     // per-work all-in ceiling (mandate §A, ~£10k); desk_params.max_work_gbp
 }
 
 export interface BudgetRow {
@@ -112,7 +140,9 @@ export interface LotInput {
   condition_checked?: boolean;
   provenance_note?: string | null;
   sale_context?: string | null; // multiples / pair / budget-conflict prose
-  taste_ok: boolean;
+  opening_gbp?: number | null; // live opening / starting bid where the platform shows it
+  /** true = glad to own; false = no (hard halt); null = not asked yet. */
+  taste_ok: boolean | null;
 }
 
 export interface Anchor {
@@ -164,7 +194,7 @@ export interface Decision {
   K_buy: number;
   ladder: Ladder;
   all_in_at_firm: number | null;
-  taste_ok: boolean;
+  taste_ok: boolean | null;
   budget_ok: boolean;
   params_id: string;
   flags: string[];
@@ -302,6 +332,11 @@ function kBuy(lot: LotInput, config: DeskConfig, params: DeskParams, today: stri
   return 1 + bp * (1 + params.vat_premium) + arr;
 }
 
+function kBuyNoArr(lot: LotInput, params: DeskParams): number {
+  const bp = lot.bp_pct ?? params.bp_pct_default;
+  return 1 + bp * (1 + params.vat_premium);
+}
+
 function slugToken(id: string, token: string) {
   return id.toLowerCase().includes(token);
 }
@@ -395,7 +430,77 @@ function findAnchorSlice(
 
 /* ------------------------------ scorer --------------------------------- */
 
+/**
+ * Public entry point. Runs the lane scorer, then the gates every lane shares:
+ * an unanswered taste gate, the hard budget gate (the Pritchett and paper
+ * lanes never applied it), and the saleroom floor (a walk-away below the
+ * opening or the likely reserve cannot be bid in the room).
+ */
 export function scoreLot(b: ScoreBundle): Decision {
+  return finalise(scoreLotCore(b), b);
+}
+
+function finalise(d: Decision, b: ScoreBundle): Decision {
+  if (d.decision !== "Buy") return d;
+  const lot = b.lot;
+  const hold = (binding: string, rationale: string, extra: Partial<Decision> = {}): Decision => ({
+    ...d, decision: "Monitor", binding_constraint: binding, vault: null,
+    rationale: `${rationale} ${d.rationale}`.trim(), ...extra,
+  });
+
+  if (lot.taste_ok == null) {
+    return hold("taste-not-asked", "Taste gate unanswered: ladder shown for the question, not for bidding.");
+  }
+
+  if (d.lane !== "oil") {
+    const envelope = b.budget?.envelope_gbp ?? 0;
+    const remaining = envelope - (b.budget?.committed_gbp ?? 0);
+    const allIn = d.all_in_at_firm ?? 0;
+    if (!(envelope > 0 && remaining >= allIn)) {
+      return hold(envelope <= 0 ? "no-envelope" : "budget",
+        envelope <= 0 ? "No budget envelope set: bidding blocked by design." : `Budget headroom £${Math.round(remaining)} < all-in £${allIn}.`,
+        { budget_ok: false });
+    }
+    d = { ...d, budget_ok: true };
+  }
+
+  // Per-work ceiling (§A): the all-in never exceeds max_work_gbp, however high
+  // the anchor. Names that habitually clear above it (ceiling_breach) are out of
+  // mandate at their own top end, so the ladder is capped, not the lot skipped.
+  const maxWork = b.params.max_work_gbp;
+  if (maxWork != null && d.ladder.firm != null && d.all_in_at_firm != null && d.all_in_at_firm > maxWork) {
+    const kEff = d.all_in_at_firm / d.ladder.firm;
+    const cap = Math.floor(maxWork / kEff);
+    d = {
+      ...d,
+      ladder: {
+        ...d.ladder,
+        firm: Math.min(d.ladder.firm, cap),
+        stretch: d.ladder.stretch != null ? Math.min(d.ladder.stretch, cap) : null,
+        tightened: d.ladder.tightened != null ? Math.min(d.ladder.tightened, cap) : null,
+      },
+      all_in_at_firm: Math.round(Math.min(d.ladder.firm, cap) * kEff),
+      flags: [...d.flags, `per-work-ceiling-capped:${maxWork}`],
+      rationale: `${d.rationale} Capped at the £${maxWork} per-work ceiling: hammer ≤ £${cap}.`,
+    };
+  }
+
+  const top = d.ladder.stretch ?? d.ladder.firm;
+  if (top != null) {
+    if (lot.opening_gbp != null && top < lot.opening_gbp) {
+      return hold("ladder-below-opening",
+        `Top of ladder £${top} is below the £${lot.opening_gbp} opening: no bid can be placed. Post-sale offer at firm if bought in.`);
+    }
+    if ((lot.currency ?? "GBP").toUpperCase() === "GBP" && lot.est_low != null &&
+        top < lot.est_low * RESERVE_FLOOR_OF_LOW_EST) {
+      return hold("ladder-below-likely-reserve",
+        `Top of ladder £${top} is under ${RESERVE_FLOOR_OF_LOW_EST * 100}% of the £${lot.est_low} low estimate: unlikely to clear in the room. Leave a commission at firm or approach post-sale if bought in.`);
+    }
+  }
+  return d;
+}
+
+function scoreLotCore(b: ScoreBundle): Decision {
   const { lot, comps, config, params } = b;
   const today = iso(b.today);
   const flags: string[] = [];
@@ -561,7 +666,18 @@ export function scoreLot(b: ScoreBundle): Decision {
   // Stage 6/10: discounts + ladder
   const dFirm = config.discount_override_firm ?? params.collector_discount_firm;
   const dStretch = config.discount_override_stretch ?? params.collector_discount_stretch;
-  const H = (d: number, fv: number) => round((fv * qd * (1 - d)) / K);
+  // ARR bites only at or above the threshold hammer. Where the ARR-inclusive
+  // walk-away falls short of it, the lot can be bid up to just under the line
+  // with no ARR, so the walk-away is the better of the two.
+  const Kno = kBuyNoArr(lot, params);
+  const arrOn = K > Kno;
+  const H = (d: number, fv: number) => {
+    const allIn = fv * qd * (1 - d);
+    const hArr = allIn / K;
+    if (!arrOn) return round(hArr);
+    return round(Math.max(hArr, Math.min(allIn / Kno, ARR_THRESHOLD_GBP - 1)));
+  };
+  const kAt = (h: number) => (arrOn && h >= ARR_THRESHOLD_GBP ? K : Kno);
   const staleRung = slice.rung >= 3;
   const fvForBid = staleRung ? fair_value * (1 - params.stale_haircut) : fair_value;
   if (staleRung) flags.push("stale-haircut-applied");
@@ -569,10 +685,11 @@ export function scoreLot(b: ScoreBundle): Decision {
   const firm = H(dFirm, fvForBid);
   const stretch = staleRung ? null : H(dStretch, fair_value);
   const tightened = staleRung ? H(dFirm, fvForBid) : null;
-  const all_in_at_firm = round(firm * K);
+  const all_in_at_firm = round(firm * kAt(firm));
+  if (arrOn && firm < ARR_THRESHOLD_GBP) flags.push(`arr-below-threshold:${ARR_THRESHOLD_GBP}`);
 
   // Stage 8: taste gate (hard)
-  if (!lot.taste_ok) {
+  if (lot.taste_ok === false) {
     return base({
       decision: "Skip", lane: "oil", binding_constraint: "taste-gate", anchor,
       quality_delta: { value: qd, bound, basis: qdBasis, override: qdOverride },
@@ -622,10 +739,10 @@ export function scoreLot(b: ScoreBundle): Decision {
     lane: "oil",
     anchor,
     quality_delta: { value: qd, bound, basis: qdBasis, override: qdOverride },
-    K_buy: round(K * 1000) / 1000,
+    K_buy: round(kAt(firm) * 1000) / 1000,
     ladder: { firm, stretch, tightened, commission: floor },
     all_in_at_firm,
-    taste_ok: true,
+    taste_ok: lot.taste_ok,
     budget_ok: true,
     params_id: params.params_id,
     flags,
@@ -647,13 +764,13 @@ function scorePritchett(
   else if (lot.longest_cm >= 45) allInCeiling = 2750;
   flags.push("pritchett-size-tier-table", "dates-low-confidence");
   const firm = allInCeiling != null ? Math.round(allInCeiling / K) : null;
-  const decision: Decision["decision"] = !lot.taste_ok ? "Skip" : firm != null ? "Buy" : "Skip";
+  const decision: Decision["decision"] = lot.taste_ok === false ? "Skip" : firm != null ? "Buy" : "Skip";
   const rationale = firm != null
     ? `Pritchett size-tier (${band.label}): all-in ceiling £${allInCeiling}, firm hammer £${firm}. Signed oil only.`
     : "Below 45cm: skip.";
   return {
     lot: { artist_id: lot.artist_id, title: lot.title, sale_key: sk },
-    decision, binding_constraint: !lot.taste_ok ? "taste-gate" : firm == null ? "size-floor" : null,
+    decision, binding_constraint: lot.taste_ok === false ? "taste-gate" : firm == null ? "size-floor" : null,
     lane: "pritchett-table",
     anchor: { fair_value: allInCeiling, tier: null, rung: 0, n: 0, confidence: null, iqr: null, comp_range: null, flags: ["fixed-tier-table"] },
     quality_delta: { value: 1.0, bound: null, basis: "n/a (fixed table)", override: null },
@@ -662,7 +779,7 @@ function scorePritchett(
     all_in_at_firm: allInCeiling,
     taste_ok: lot.taste_ok, budget_ok: false, params_id: params.params_id, flags,
     rationale,
-    vault: firm != null && lot.taste_ok ? buildVault(lot, sk, "Buy", null, 1.0, firm, null, allInCeiling, flags) : null,
+    vault: firm != null && lot.taste_ok !== false ? buildVault(lot, sk, "Buy", null, 1.0, firm, null, allInCeiling, flags) : null,
   };
 }
 
@@ -698,8 +815,8 @@ function scorePaper(
     rationale = `Finished sheet; walk-away £${firm} hammer (${sighted ? "sighted" : "blind punt, haircut"}), ceiling £${ceiling}.`;
   }
 
-  const decision: Decision["decision"] = firm != null && lot.taste_ok ? "Buy" : firm != null ? "Skip" : "Monitor";
-  if (firm != null && !lot.taste_ok) binding = "taste-gate";
+  const decision: Decision["decision"] = firm != null && lot.taste_ok !== false ? "Buy" : firm != null ? "Skip" : "Monitor";
+  if (firm != null && lot.taste_ok === false) binding = "taste-gate";
   return {
     lot: { artist_id: lot.artist_id, title: lot.title, sale_key: sk },
     decision, binding_constraint: binding, lane: "paper",
@@ -709,7 +826,7 @@ function scorePaper(
     ladder: { firm, stretch: null, tightened: null, commission: config.commission_floor_gbp ?? null },
     all_in_at_firm: firm != null ? Math.round(firm * K) : null,
     taste_ok: lot.taste_ok, budget_ok: false, params_id: params.params_id, flags, rationale,
-    vault: firm != null && lot.taste_ok ? buildVault(lot, sk, "Buy", null, 1.0, firm, null, firm != null ? Math.round(firm * K) : null, flags) : null,
+    vault: firm != null && lot.taste_ok !== false ? buildVault(lot, sk, "Buy", null, 1.0, firm, null, firm != null ? Math.round(firm * K) : null, flags) : null,
   };
 }
 
